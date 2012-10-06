@@ -1,41 +1,45 @@
 #!/bin/sh -c node
 
-var WebSocketServer = require('websocket').server;
+//HTTP Server Code.
 var express = require('express');
 var app = express.createServer();
+var webroot = __dirname + "/static";
 
 app.configure(function() {
-    app.use(express.static(__dirname + "/static"));
+    app.use(express.static(webroot));
     app.set('views', __dirname);
     app.set('view engine', 'ejs');
 });
-app.get('/', function(req, res) {
-    res.render(__dirname + "/static" + "/index", { layout: false });
+
+app.get('/', function(request, response) {
+    response.render(webroot + "/index", { layout: false });
 });
 
 app.listen(8080);
 
+//WebSocket Server Code.
+var WebSocketServer = require('websocket').server;
 var wsServer = new WebSocketServer({
     httpServer: app,
-    
     // Firefox 7 alpha has a bug that drops the
     // connection on large fragmented messages
-    // fragmentOutgoingMessages: false
+     fragmentOutgoingMessages: false
 });
 
+var users = {};
 var connections = [];
-var canvasCommands = [];
+var userCommands = [];
 
 wsServer.on('request', function(request) {
-    var connection = request.accept('whiteboard-example', request.origin);
+    var connection = request.accept('turntable', request.origin);
     connections.push(connection);
     
     console.log(connection.remoteAddress + " connected - Protocol Version " + connection.websocketVersion);
     
     // Send all the existing canvas commands to the new client
     connection.sendUTF(JSON.stringify({
-        msg: "initCommands",
-        data: canvasCommands
+        msg: "updateMessage",
+        data: users
     }));
     
     // Handle closed connections
@@ -55,11 +59,11 @@ wsServer.on('request', function(request) {
             try {
                 var command = JSON.parse(message.utf8Data);
 
-                if (command.msg === 'clear') {
-                    canvasCommands = [];
+                if (command.msg === 'join') {
+                    //
                 }
                 else {
-                    canvasCommands.push(command);
+                    //userCommands.push(command);
                 }
 
                 // rebroadcast command to all clients

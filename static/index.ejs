@@ -1,61 +1,80 @@
 <!DOCTYPE html>
 <html>
 <!--
-  Copyright 2010-2011 Worlize Inc.
-  
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this file except in compliance with the License.
-  You may obtain a copy of the License at
-  
-      http://www.apache.org/licenses/LICENSE-2.0
-  
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
+  Turn Table Server.
 -->
 <head>
   <meta charset="utf-8">
-  <title>WebSocket Whiteboard Example</title>
-  <script src="/client.js" type="text/javascript" charset="utf-8"></script>
-  <link rel="stylesheet" href="/client.css">
+  <title>Turn Table Server</title>
+  <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Droid Sans">
+  <link rel="stylesheet" type="text/css" href="/Style/Style.css">
 </head>
-<body>
-  <h1>Shared Whiteboard Example</h1>
-
-  <p>As of the time of this writing, this example requires at least
-     <a href="http://www.mozilla.com/firefox/channel/">Firefox 7 beta</a> or
-     <a href="http://www.google.com/landing/chrome/beta/">Chrome 14 beta</a>.</p>
-
-  <canvas id="whiteboardCanvas" width="800" height="450"></canvas>
-
-  <br>
-  <button onclick="setColor(200,0,0)"
-          style="color: #FFF; background-color: rgb(200,0,0)">Red</button>
-
-  <button onclick="setColor(0,128,0)"
-          style="color: #FFF; background-color: rgb(0,128,0)">Green</button>
-
-  <button onclick="setColor(0,0,255)"
-          style="color: #FFF; background-color: rgb(0,0,255)">Blue</button>
-
-  <button onclick="setColor(0,0,0)"
-          style="color: #FFF; background-color: rgb(0,0,0)">Black</button>
-  
-  <button onclick="erase()">Erase Whiteboard</button>
-  
+<body onload="loginUser()">
+  <h1>Turn Table Server</h1>
+  <div id="Login">
+  	<p>Enter Your ID:</p>
+	<form name="idform" action="javascript:void(0);" onsubmit="return onLoggedIn();">
+	<input type="text" id="iduser" name="iduser" value="1:644850560"/>
+	<input type="submit" id="idsubmit" name="idsubmit" value="Login!"/>
+	</form>
+  </div>
+  <div id="Users">
+  	<p>List of Users</p>
+	No Users Found.
+  </div>
+  <div id="Games">
+  	<p>List of Games</p>
+	No Games Found.
+  </div>
+  <script src="/Scripts/WebSocketClient.js" type="text/javascript" charset="utf-8"></script>
+  <script src="/Scripts/List.js" type="text/javascript" charset="utf-8"></script>
+  <script src="/Scripts/Shard.js" type="text/javascript" charset="utf-8"></script>
   <script>
-    var client = new Whiteboard('whiteboardCanvas');
-    client.connect();
-    
-    function erase() {
-      client.sendClear();
+    var userId = null;
+    var client = null;
+
+    function loginUser() {
+	var div;
+        userId = null;
+        div = document.getElementById("Login");
+	if(div)
+		div.style.visibility = "visible";
+        div = document.getElementById("Users");
+	if(div)
+		div.style.visibility = "hidden";
+        div = document.getElementById("Games");
+	if(div)
+		div.style.visibility = "hidden";
+    }
+
+    function logoutUser() {
+        userId = null;
+	loginUser();
+    }
+
+    function onLoggedIn() {
+	userIdInput = document.getElementById("iduser");
+	if(!userIdInput)
+		return;
+	userId = userIdInput.value;
+	connectServer();
+        div = document.getElementById("Login");
+	if(div)
+		div.style.visibility = "hidden";
+        div = document.getElementById("Users");
+	if(div)
+		div.style.visibility = "visible";
+        div = document.getElementById("Games");
+	if(div)
+		div.style.visibility = "visible";
+    }
+
+    function connectServer() {
+    	var userServer = getServer(userId, UserServers);
+    	client = new WebSocketClient(userServer);
+    	client.connect();
     }
     
-    function setColor(r,g,b) {
-      client.setColor(r,g,b);
-    }
   </script>
 </body>
 </html>
