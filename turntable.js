@@ -1,5 +1,8 @@
 #!/bin/sh -c node
 
+//Settings.
+var port = 8080;
+
 //HTTP Server Code.
 var express = require('express');
 if(!express) {
@@ -20,12 +23,16 @@ app.get('/', function(request, response) {
     response.render(webroot + "/index", { layout: false });
 });
 
-try {
-    app.listen(8080);
-} catch (e) {
-    console.log("Unable to Bind Server. Please check if you are already running this code!");
-    process.exit(-1);
-}
+app.on('error', function (e) {
+  if (e.code == 'EADDRINUSE') {
+    console.log("Unable to Bind Server. Please check if you are already running this code. Retrying ...");
+    setTimeout(function () {
+      app.listen(port);
+    }, 5000);
+  }
+});
+
+app.listen(port);
 
 //WebSocket Server Code.
 var WebSocketServer = require('websocket').server;
