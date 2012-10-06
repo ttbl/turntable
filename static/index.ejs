@@ -71,8 +71,8 @@
 
     function connectServer() {
     	var userServer = getServer(userId, UserServers);
-    	client = new WebSocketClient(userServer);
-    	client.connect();
+    	client = new WebSocketClient();
+    	client.connect(userServer);
     }
     
   </script>

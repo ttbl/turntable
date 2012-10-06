@@ -48,15 +48,15 @@ function crc32 (str) {
 
 function getServer(id, Servers) {
 	var curServer = null;
-	if(id == null)
+	if(id == null) 
+		return curServer;
+	if(Servers == null)
 		return curServer;
 	var numServers = Servers.length;
 	if(numServers == 0)
 		return curServer;
-	if(crc32) {
-		var crc = crc32(id);
-		crc %= numServers;
-		curServer = Servers[crc];
-	}
+	var crc = crc32(id);
+	crc = crc % numServers;
+	curServer = Servers[crc];
 	return curServer;
 }

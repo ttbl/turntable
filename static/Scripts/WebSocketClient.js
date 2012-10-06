@@ -36,7 +36,10 @@ WebSocketClient.prototype.connect = function(docURL) {
      if(console)
        console.log("Can't open WebSocket Connection.");
      alert("Can't open WebSocket Connection.");
+     return;
     }
+    if(console)
+       console.log("Connecting to : "+url);
 
     var wsCtor = window['MozWebSocket'] ? MozWebSocket : WebSocket;
     this.socket = new wsCtor(url, 'turntable');
