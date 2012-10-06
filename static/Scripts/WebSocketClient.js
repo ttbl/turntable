@@ -2,8 +2,7 @@
 
 function WebSocketClient() {
     // Define accepted commands
-    this.messageHandlers = {
-    };
+    this.messageHandlers = {};
 };
 
 WebSocketClient.prototype.registerCallback = function(messagetype, callback) { 
@@ -74,14 +73,17 @@ WebSocketClient.prototype.dispatchCommand = function(command) {
    var handler = null;
    if(!command)
 	return;
-   if(command.msg)
-	handler = this.messageHandlers[command.msg];
+   if(command.command)
+	handler = this.messageHandlers[command.command];
    else
 	handler = this.messageHandlers[command];
 
    // If so, call it and pass the parameter data
    if (handler && typeof(handler) === 'function') {
-        handler.call(this, command.data);
+	if(command.data)
+       		handler.call(this, command.data);
+	else
+		handler.call(this, command);
    } else {
 	if(console)
 		console.log("Recieved but not able to Dispatch Message: %o", command);

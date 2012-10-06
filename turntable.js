@@ -18,7 +18,7 @@ function openConnection(connection) {
     connections.push(connection);
     console.log(connection.remoteAddress + " connected - Protocol Version " + connection.websocketVersion);
     // Send a message to the new client.
-    sendMessage(connection, JSON.stringify({ msg: "updateMessage", data: users }));
+    sendMessage(connection, JSON.stringify({ command: "updateMessage", data: users }));
 }
 
 function closeConnection(connection) {
@@ -33,7 +33,8 @@ function handleMessageOnConnection(connection, message) {
     if (message.type !== 'utf8')
 	return;
     try { 
-        var command = JSON.parse(message.utf8Data);
+        var parsedMessage = JSON.parse(message.utf8Data);
+	console.log("Broadcasting Message: %o",parsedMessage);
         // rebroadcast command to all clients
         connections.forEach(function(destconnection) {
             sendMessage(destconnection, message.utf8Data);	
