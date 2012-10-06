@@ -11,14 +11,13 @@ var connections = [];
 var userCommands = [];
 
 function handleConnectionSend(connection, message) {
-	connection.sendUTF(message);
+	connection.sendUTF(JSON.stringify(message));
 }
 
 function handleConnectionOpen(connection) {
     connections.push(connection);
     console.log(connection.remoteAddress + " Connected - Protocol Version " + connection.websocketVersion);
-    // Send a message to the new client.
-    handleConnectionSend(connection, JSON.stringify({ command: "idyou", data: {} }));
+    handleConnectionSend(connection, { command: "idyou", data: {} });
 }
 
 function handleConnectionClose(connection) {
@@ -37,17 +36,38 @@ function handleConnectionClose(connection) {
     }
 }
 
-function dispatchCommand(connection, command, data) {
-	if(command === "idme") {
-		var userid = data;
-		var exconnection = users[userid];
-		if(exconnection) {
-			console.log("Already Connected User: "+userid+", Disconnecting ....");
-			connection.close();
-			return;
+function handleIdMe(connection, command, data) {
+	var userid = data;
+	var exconnection = users[userid];
+	if(exconnection) {
+		console.log("Already Connected User: "+userid+", Disconnecting ....");
+		connection.close();
+		return;
+	}
+	users[userid] = connection;
+	console.log("Adding User: "+userid+" ....");
+}
+
+function handleWhoThere(connection, command, data) {
+	var usersCurrent = [];
+	for(userid in users) {
+		if(users.hasOwnProperty(userid)) {
+			usersCurrent.push(userid);
 		}
-		users[userid] = connection;
-		console.log("Adding User: "+userid+" ....");
+	}
+	handleConnectionSend(connection, {command: "there", data: usersCurrent});
+}
+
+var commandDispatchers = { "whothere": handleWhoThere, "idme": handleIdMe };
+function dispatchCommand(connection, command, data) {
+	var handler = null;
+	if(commandDispatchers[command] && typeof(commandDispatchers[command]) === 'function') {
+		handler = commandDispatchers[command];
+		if(handler) {
+			handler(connection, command, data);
+		} else {
+			console.log("Recieved but not able to Dispatch Message: %o %o", command, data);
+		}
 	}
 }
 

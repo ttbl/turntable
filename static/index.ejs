@@ -63,10 +63,30 @@
 	if(div)
 		div.style.visibility = "visible";
 	client.handleWebSocketSend({command: "idme", data: userId});
+	client.registerCallback("there", onUsers);
+	client.handleWebSocketSend({command: "whothere", data: {}});
     }
  
     function onDisconnected() {
 	logoutUser();
+    }
+
+    function onUsers(data) {
+        div = document.getElementById("Users");
+	if(div) {
+		var users;
+		if(data)
+			for(userid in data) {
+				if(data.hasOwnProperty(userid)) {
+					if(!users)
+						users = "These Users are Present: ";
+					else
+						users += ",";
+					users += "<b>"+data[userid]+"</b>";
+				}
+			}
+		div.innerHTML = users;
+	}
     }
 
     function onLoggedIn() {
