@@ -52,12 +52,7 @@
 	loginUser();
     }
 
-    function onLoggedIn() {
-	userIdInput = document.getElementById("iduser");
-	if(!userIdInput)
-		return;
-	userId = userIdInput.value;
-	connectServer();
+    function onConnected() {
         div = document.getElementById("Login");
 	if(div)
 		div.style.visibility = "hidden";
@@ -67,14 +62,28 @@
         div = document.getElementById("Games");
 	if(div)
 		div.style.visibility = "visible";
+	client.handleWebSocketSend({command: "idme", data: userId});
+    }
+ 
+    function onDisconnected() {
+	logoutUser();
+    }
+
+    function onLoggedIn() {
+	userIdInput = document.getElementById("iduser");
+	if(!userIdInput)
+		return;
+	userId = userIdInput.value;
+	connectServer();
     }
 
     function connectServer() {
     	var userServer = getServer(userId, UserServers);
     	client = new WebSocketClient();
+	client.registerCallback("Open", onConnected);
+	client.registerCallback("Close", onDisconnected);
     	client.connect(userServer);
     }
-    
   </script>
 </body>
 </html>

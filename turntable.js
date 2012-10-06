@@ -10,35 +10,57 @@ var users = {};
 var connections = [];
 var userCommands = [];
 
-function sendMessage(connection, message) {
+function handleConnectionSend(connection, message) {
 	connection.sendUTF(message);
 }
 
-function openConnection(connection) {
+function handleConnectionOpen(connection) {
     connections.push(connection);
-    console.log(connection.remoteAddress + " connected - Protocol Version " + connection.websocketVersion);
+    console.log(connection.remoteAddress + " Connected - Protocol Version " + connection.websocketVersion);
     // Send a message to the new client.
-    sendMessage(connection, JSON.stringify({ command: "updateMessage", data: users }));
+    handleConnectionSend(connection, JSON.stringify({ command: "idyou", data: {} }));
 }
 
-function closeConnection(connection) {
-    console.log(connection.remoteAddress + " disconnected");
-    var index = connections.indexOf(connection);
+function handleConnectionClose(connection) {
+    console.log(connection.remoteAddress + " Disconnected");
+    var index;
+    index = connections.indexOf(connection);
     if (index !== -1) { // remove the connection from the pool
         connections.splice(index, 1);
     }
+    for(var userid in users) {
+	if(users[userid] === connection) {
+		console.log("Removing User: "+userid+" ....");
+		delete users[userid];
+		break;
+	}
+    }
 }
 
-function handleMessageOnConnection(connection, message) {
+function dispatchCommand(connection, command, data) {
+	if(command === "idme") {
+		var userid = data;
+		var exconnection = users[userid];
+		if(exconnection) {
+			console.log("Already Connected User: "+userid+", Disconnecting ....");
+			connection.close();
+			return;
+		}
+		users[userid] = connection;
+		console.log("Adding User: "+userid+" ....");
+	}
+}
+
+function handleConnectionMessage(connection, message) {
     if (message.type !== 'utf8')
 	return;
     try { 
         var parsedMessage = JSON.parse(message.utf8Data);
-	console.log("Broadcasting Message: %o",parsedMessage);
-        // rebroadcast command to all clients
-        connections.forEach(function(destconnection) {
-            sendMessage(destconnection, message.utf8Data);	
-        });
+	if(!parsedMessage.command) {
+		dispatchCommand(connection, parsedMessage, parsedMessage);
+	} else {
+		dispatchCommand(connection, parsedMessage.command, parsedMessage.data);
+	}
     } catch (e) {
         // do nothing if there's an error.
     }
@@ -95,14 +117,14 @@ var wsServer = new WebSocketServer({
 wsServer.on('request', function(request) {
     var connection = request.accept('turntable', request.origin);
     //Handle open connection
-    openConnection(connection);
+    handleConnectionOpen(connection);
     //Handle closed connection
     connection.on('close', function() {
-        closeConnection(connection);
+        handleConnectionClose(connection);
     });
     //Handle incoming messages on connection
     connection.on('message', function(message) {
-        handleMessageOnConnection(connection, message);
+        handleConnectionMessage(connection, message);
     });
 });
 

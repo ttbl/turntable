@@ -42,27 +42,34 @@ WebSocketClient.prototype.connect = function(docURL) {
 
     var wsCtor = window['MozWebSocket'] ? MozWebSocket : WebSocket;
     this.socket = new wsCtor(url, 'turntable');
-    this.socket.onmessage = this.handleWebsocketMessage.bind(this);
-    this.socket.onclose = this.handleWebsocketClose.bind(this);
+    this.socket.onopen = this.handleWebSocketOpen.bind(this);
+    this.socket.onmessage = this.handleWebSocketMessage.bind(this);
+    this.socket.onclose = this.handleWebSocketClose.bind(this);
 };
 
-WebSocketClient.prototype.sendWebsocketMessage = function(message) {
+WebSocketClient.prototype.handleWebSocketSend = function(message) {
     this.socket.send(JSON.stringify(message));
 };
 
-WebSocketClient.prototype.handleWebsocketMessage = function(message) {
+WebSocketClient.prototype.handleWebSocketMessage = function(message) {
     try {
-        var command = JSON.parse(message.data);
+        var parsedMessage = JSON.parse(message.data);
     } catch(e) { 
        if(console)
          console.log("Unable to Parse Message: %o",message);
     }
-    if (command) {
-        this.dispatchCommand(command);
+    if (parsedMessage) {
+        this.dispatchCommand(parsedMessage);
     }
 };
 
-WebSocketClient.prototype.handleWebsocketClose = function() {
+WebSocketClient.prototype.handleWebSocketOpen = function() {
+    if(console)
+       console.log("WebSocket Connection Open.");
+    this.dispatchCommand("Open");
+};
+
+WebSocketClient.prototype.handleWebSocketClose = function() {
     if(console)
        console.log("WebSocket Connection Closed.");
     this.dispatchCommand("Close");
@@ -89,4 +96,3 @@ WebSocketClient.prototype.dispatchCommand = function(command) {
 		console.log("Recieved but not able to Dispatch Message: %o", command);
    }
 };
-
