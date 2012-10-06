@@ -7,9 +7,15 @@ lib-cov
 *.pid
 *.gz
 
-pids
-logs
-results
+Pids
+Logs
+Results
+
+Scratch
+Deps
+Bin
 
 node_modules
 npm-debug.log
+
+package.json
