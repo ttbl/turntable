@@ -2,6 +2,11 @@
 
 //HTTP Server Code.
 var express = require('express');
+if(!express) {
+	console.log("Unable to Get Express.");
+	process.exit(-1);
+}
+
 var app = express.createServer();
 var webroot = __dirname + "/static";
 
@@ -15,10 +20,19 @@ app.get('/', function(request, response) {
     response.render(webroot + "/index", { layout: false });
 });
 
-app.listen(8080);
+try {
+    app.listen(8080);
+} catch (e) {
+    console.log("Unable to Bind Server. Please check if you are already running this code!");
+    process.exit(-1);
+}
 
 //WebSocket Server Code.
 var WebSocketServer = require('websocket').server;
+if(!WebSocketServer) {
+	console.log("Unable to Get WebSocket-Node.");
+	process.exit(-1);
+}
 var wsServer = new WebSocketServer({
     httpServer: app,
     // Firefox 7 alpha has a bug that drops the
@@ -78,4 +92,4 @@ wsServer.on('request', function(request) {
     });
 });
 
-console.log("App Loaded.... ");
+console.log("Started ...");
