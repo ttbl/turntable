@@ -63,7 +63,6 @@ function handleUserOpen(connection, command, data) {
 
 function handleUserClose(connection, command, data) {
     for(var userid in users) {
-	console.log("User: "+userid);
 	if(users[userid] == connection) {
 		console.log("Removing User: "+userid+" ....");
 		delete users[userid];
@@ -176,7 +175,7 @@ wsServer.on('request', function(request) {
     //Handle open connection
     handleConnectionOpen(connection);
     //Handle closed connection
-    connection.on('close', function(connection, closeReason, description) {
+    connection.on('close', function() {
         handleConnectionClose(connection);
     });
     //Handle incoming messages on connection
@@ -190,16 +189,25 @@ wsServer.on('request', function(request) {
 function handleExit() {
 	console.log("");
 	console.log("Exiting .... ");
+	for(connkey in connections) {
+		if(connections.hasOwnProperty(connkey)) {
+			var connection = connections[connkey];
+			handleConnectionClose(connection);
+			connection.close();
+		}
+	}
 	wsServer.shutDown();
 	app.close();	
 	console.log("Process was Exited.");
 	process.exit(0);
 }
 
+//Register Handlers.
 process.on('SIGINT', handleExit);
+process.on('SIGTERM', handleExit);
 
 //Handle Uncaught Exceptions.
-process.on('uncaughtException', function (err) {
-  console.log('Caught exception: ' + err);
+process.on('uncaughtException', function (e) {
+  console.log('Unhandled Exception: ' + e);
 });
 //End Process Handling Code.
