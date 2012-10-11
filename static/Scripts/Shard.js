@@ -60,3 +60,9 @@ function getServer(id, Servers) {
 	curServer = Servers[crc];
 	return curServer;
 }
+
+//This is a Common Implementation.
+if(module && module.exports) {
+	module.exports.crc32 = crc32;
+	module.exports.getServer = getServer;
+}

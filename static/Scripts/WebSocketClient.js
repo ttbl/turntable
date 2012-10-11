@@ -1,5 +1,4 @@
 //WebSocket Client
-
 function WebSocketClient() {
     // Define accepted commands
     this.messageHandlers = {};
@@ -96,3 +95,5 @@ WebSocketClient.prototype.dispatchCommand = function(command) {
 		console.log("Recieved but not able to Dispatch Message: %o", command);
    }
 };
+
+//This is a Client-Side Only Implementation.
