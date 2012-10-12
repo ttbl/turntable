@@ -53,6 +53,7 @@ function dispatchCommand(connection, command, data) {
 //Begin Command Variables.
 var users = {}; //User to Connections Map.
 var sub_users = {}; //User to Subscribed Connections Map.
+var user_messages = {}; //User Offline Message Queue.
 var channels = {}; //Channels to Array of Connections Map.
 //End Command Variables.
 
@@ -65,6 +66,33 @@ function getUserIdForConnection(connection)
       return userId;
    }
    return null;
+}
+
+function queueUserMessage(userId, command, data) {
+	if(!user_messages[userId]) {
+		user_messages[userId]=[];
+	}
+	var message = {};
+	message["command"] = command;
+	message["data"] = data;
+	user_messages[userId].push(message);
+}
+
+function dequeUserMessages(userId) {
+	var messages = user_messages[userId];
+	var connection = users[userId];
+	if(!connection)
+          return;
+	if(!messages)
+	  return;
+	else
+          delete user_messages[userId];
+        for(var messageKey in messages) {
+		if(!messages.hasOwnProperty(messageKey))
+			continue;
+		var message = messages[messageKey];
+    		handleConnectionSend(connection, message); //Ideally Check Expiry.
+	} 
 }
 
 function getChannelForConnection(connection)
@@ -104,20 +132,23 @@ function sendUserNotification(userId, isOnline, isBusy)
 function sendUserInvite(userId, channel)
 {
     var userServer = getServer(userId, UserServers, crc32);
-    console.log("User Server: "+userServer);
     var dataSent = {};
     dataSent["user"] = userId;
     dataSent["channel"] = channel;
     if(userServer != SelfId )
       {
-         if(!cconnections[userServer])  makeWebSocketClient(userServer);
-         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
-         handleClientConnectionSend (userServer, cconnections[userServer], { command: "invite", data:dataSent });
+         if(!wsClients[userServer]) wsClients[userServer] = makeWebSocketClient(userServer); //Must Batch These!
+	 setTimeout(function() {
+         	if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
+         	handleClientConnectionSend (userServer, cconnections[userServer], { command: "invite", data:dataSent });
+	}, 250);
      } else {
-		 var connection = users[userId];
-		 if(connection) {
-		        handleConnectionSend (connection, { command: "invite", data:dataSent });
-		 }
+	 var connection = users[userId];
+	 if(connection) {
+       		handleConnectionSend (connection, { command: "invite", data:dataSent });
+	 } else {
+		queueUserMessage(userId, "invite", dataSent);
+	}
      }
 }
 
@@ -157,6 +188,7 @@ function handleIdMe(connection, command, data) {
  }
  users[userId] = connection;
  sendUserNotification(userId, true, false);
+ dequeUserMessages(userId);
  console.log("Adding User: "+userId+" ....");
 }
 
@@ -185,15 +217,16 @@ function handleSubscribe(connection, command, data) {
     continue;
     var userId = data[userIdKey];
     var userServer = getServer(userId, UserServers, crc32);
-    console.log("User Server: "+userServer);
     if(userServer != SelfId )
       {
-         if(!cconnections[userServer])  makeWebSocketClient(userServer);
-         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
-	 var message = {};
-	 message["command"]="subscribe";
-	 message["data"]=[userId];
-         handleClientConnectionSend (userServer, cconnections[userServer], message);
+         if(!wsClients[userServer]) wsClients[userServer] = makeWebSocketClient(userServer);
+	 setTimeout(function() {
+         	if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
+	        var message = {};
+	        message["command"]=command;
+	        message["data"]=[userId];
+                handleClientConnectionSend (userServer, cconnections[userServer], message);
+	}, 250);
      }
      if(!sub_users[userId]) sub_users[userId] = [];
      var index = -1;
@@ -236,7 +269,7 @@ function handleInvite(connection, command, data) {
  var channel = data.channel;
  if(!data.user)
  	return;
- var user = data.user;
+ var userId = data.user;
  sendUserInvite(userId, channel);
 }
 
@@ -309,6 +342,7 @@ registerCallback("Close", handleClose);
 
 //Begin WebSocket Client Code.
 var cconnections = {};
+var wsClients = {};
 
 var WebSocketClient = require('websocket').client;
 if (!WebSocketClient) {
@@ -321,7 +355,7 @@ function handleClientConnectionSend(serverAddress, cconnection, message) {
 }
 
 function handleClientConnectionOpen(serverAddress, cconnection) {
-  console.log(" " + serverAddress + " = " + connection.remoteAddress + " Connected - Protocol Version " + connection.websocketVersion);
+  console.log(" " + serverAddress + " = " + cconnection.remoteAddress + " Connected - Protocol Version " + cconnection.websocketVersion);
   cconnections[serverAddress] = cconnection;
   dispatchCommand(cconnection, "ClientOpen", null);
 }
@@ -348,12 +382,13 @@ function makeWebSocketClient(serverAddress) {
      console.log("Connection Error: " + e.toString());
    });
    cconnection.on('message', function(message) {
-handleClientConnectionMessage(serverAddress, cconnection, message);
+     handleClientConnectionMessage(serverAddress, cconnection, message);
     });
    cconnection.on('close', function() {
       handleClientConnectionClose(serverAddress, cconnection);
    });
  });
+ wsClient.connect(serverAddress, 'turntable');
  return wsClient;
 }
 //End WebSocket Client Code.
@@ -472,7 +507,7 @@ function handleExit() {
  console.log("Closing Client Connections ...");
  for(connkey in cconnections) {
   if(!cconnections.hasOwnProperty(connkey))
-    continue;
+      continue;
     var cconnection = cconnections[connkey];
     handleClientConnectionClose(connkey, connection);
     cconnection.close();

@@ -21,4 +21,4 @@ Bin
 
 #Specific to Git
 package.json
-static/Scripts/List.js
+**/List.js
