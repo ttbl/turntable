@@ -19,6 +19,7 @@ Scratch
 Deps
 Bin
 
-#Specific to Git
-package.json
-static/Scripts/List.js
+#Specific to Jitsu
+package.json.in
+static/Scripts/List.js.in
+*.sh
