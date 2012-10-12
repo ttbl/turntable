@@ -7,7 +7,8 @@ var webrootrel = "static";
 
 //Begin Common Config / Functions.
 var webroot = __dirname + "/" + webrootrel;
-var scriptroot = webroot + "/" + "Scripts";
+var webrootinc = "." + "/" + webrootrel;
+var scriptroot = webrootinc + "/" + "Scripts";
 var serverList = require(scriptroot +"/"+"List");
 var SelfId = serverList.SelfId;
 var UserServers = serverList.UserServers;
