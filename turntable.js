@@ -193,7 +193,10 @@ function handleSubscribe(connection, command, data) {
       {
          if(!cconnections[userServer])  makeWebSocketClient(userServer);
          if(!cconnections[userServer]) { console.log("Not Connected to Server: "+server); return; }
-         handleClientConnectionSend (userServer, cconnections[userServer], { command: "subscribe", data:[userId] });
+	 var message = {};
+	 message["command"]="subscribe";
+	 message["data"]=[userId];
+         handleClientConnectionSend (userServer, cconnections[userServer], message);
      }
      if(!sub_users[userId]) sub_users[userId] = [];
      var index = -1;
