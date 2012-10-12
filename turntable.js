@@ -52,7 +52,6 @@ function dispatchCommand(connection, command, data) {
 //Begin Command Variables.
 var users = {}; //User to Connections Map.
 var sub_users = {}; //User to Subscribed Connections Map.
-var sub_conns = {}; //Inverse Map of the Above.
 //End Command Variables.
 
 function getUserIdForConnection(connection)
@@ -71,15 +70,15 @@ function sendUserNotification(userId, isOnline, isBusy)
   if(!sub_users.hasOwnProperty(userId))
      return;
   var subscribers = sub_users[userId];
+  var status=isOnline?"online":"offline";
+  var users={}; users[userId] = status;
+  if(isOnline && isBusy)
+     status="busy";
+  console.log("Notifying that User: "+userId+" is "+ status + " ....");
   for(connkey in subscribers) {
     if(!subscribers.hasOwnProperty(connkey))
      continue;
     var connection = subscribers[connkey];
-    var status=isOnline?"online":"offline";
-    var users={};
-    users[userId] = status;
-    if(isOnline && isBusy)
-     status="busy";
     handleConnectionSend(connection, {command: "userchange", data:users});
  }
 }
@@ -88,22 +87,15 @@ function pruneUserConnections(userId) {
  console.log("Removing User: "+userId+" ....");
  var connection = users[userId];
  delete users[userId];
- if(connection) {
-   if(!sub_conns.hasOwnProperty(connection)) 
+ if(!connection) 
 	return;
-   for(userIdKey in sub_conns[connection]) {
-	if(!sub_conns[connection].hasOwnProperty(userIdKey))
-		continue;
-	var otherUserId = sub_conns[connection][userIdKey];
-	if(!sub_users.hasOwnProperty(otherUserId))
-		continue;
-        index = sub_users[otherUserId].indexOf(connection);
-        if (index !== -1) { // remove the connection from the pool
-           console.log("Pruned Subcription of: "+otherUserId+" to: "+userId);
+ for(otherUserId in sub_users) {
+     if(!sub_users.hasOwnProperty(otherUserId))
+	continue;
+       index = sub_users[otherUserId].indexOf(connection);
+       if (index !== -1) { // remove the connection from the pool
            sub_users[otherUserId].splice(index, 1);
-        } 
-   }
-   delete sub_conns[connection];
+       } 
  }
 }
 
@@ -151,11 +143,6 @@ function handleSubscribe(connection, command, data) {
        console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
        sub_users[userId].push(connection);
      }
-     if(!sub_conns[connection]) sub_conns[connection] = [];
-     index = sub_conns[connection].indexOf(userId);
-     if(index == -1) {
-       sub_conns[connection].push(userId);
-     }
  }
 }
 
@@ -167,7 +154,6 @@ function handleIdMe(connection, command, data) {
   connection.close();
   return;
  }
- console.log("Notifying Subcribers of User: "+userId+" ....");
  users[userId] = connection;
  sendUserNotification(userId, true, false);
  console.log("Adding User: "+userId+" ....");
