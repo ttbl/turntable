@@ -55,6 +55,7 @@ function dispatchCommand(connection, command, data) {
 //Begin Command Variables.
 var users = {}; //User to Connections Map.
 var sub_users = {}; //User to Subscribed Connections Map.
+var channels = {}; //Channels to Array of Connections Map.
 //End Command Variables.
 
 function getUserIdForConnection(connection)
@@ -64,6 +65,22 @@ function getUserIdForConnection(connection)
       continue;
     if(users[userId] == connection)
       return userId;
+   }
+   return null;
+}
+
+function getChannelForConnection(connection)
+{
+   for(var channel in channels) {
+    if(!channels.hasOwnProperty(channel))
+      continue;
+    for(connkey in channels[channel]) {
+    	if(!channels[channel].hasOwnProperty(connkey))
+    		continue;
+    	var exconnection = channels[channel][connkey];
+    	if(exconnection === connection)
+    		return channel;
+    }
    }
    return null;
 }
@@ -86,6 +103,26 @@ function sendUserNotification(userId, isOnline, isBusy)
  }
 }
 
+function sendUserInvite(userId, channel)
+{
+    var userServer = getServer(userId, UserServers, crc32);
+    console.log("User Server: "+userServer);
+    if(userServer != SelfId )
+      {
+         if(!cconnections[userServer])  makeWebSocketClient(userServer);
+         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+server); return; }
+         var dataSent = {};
+         dataSent["user"] = userId;
+         dataSent["channel"] = channel;
+         handleClientConnectionSend (userServer, cconnections[userServer], { command: "invite", data:dataSent });
+     } else {
+		 var connection = users[userId];
+		 if(connection) {
+		        handleConnectionSend (connection, { command: "invite", data:dataSent });
+		 }
+     }
+}
+
 function pruneUserConnections(userId) {
  console.log("Removing User: "+userId+" ....");
  var connection = users[userId];
@@ -105,8 +142,8 @@ function pruneUserConnections(userId) {
 function handleWhoThere(connection, command, data) {
  var usersCurrent = [];
  for(userId in users) {
-  if(!users.hasOwnProperty(userId))
-continue;
+   if(!users.hasOwnProperty(userId))
+    continue;
    usersCurrent.push(userId);
  }
  handleConnectionSend(connection, {command: "there", data: usersCurrent});
@@ -158,8 +195,8 @@ function handleSubscribe(connection, command, data) {
          if(!cconnections[userServer]) { console.log("Not Connected to Server: "+server); return; }
          handleClientConnectionSend (userServer, cconnections[userServer], { command: "subscribe", data:[userId] });
      }
-     var index = -1;
      if(!sub_users[userId]) sub_users[userId] = [];
+     var index = -1;
      index = sub_users[userId].indexOf(connection);
      if(index == -1) {
        console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
@@ -168,14 +205,61 @@ function handleSubscribe(connection, command, data) {
  }
 }
 
-function handleGameClient(connection, command, data){
-  //change player state
-  var dict = JSON.parse(data);
-  var id = dict["id"];
-  var payload = dict["payload"];
-  handleConnectionSend(users[id], {command: "game", data: payload });
+function handleJoinGame(connection, command, data) {
+ if(!data.channel)
+ 	return;
+ var channel = data.channel;
+ if(!channels[channel]) {
+    console.log("Creating Channel: "+channel+" ....");
+    channels[channel] = [];
+ }
+ var index = -1;
+ index = channels[channel].indexOf(connection);
+ if(index == -1) {
+    channels[channel].push(connection);
+    console.log(" " + connection.remoteAddress + " is now Bound to Channel: " + channel);
+ }
+ if(!data.invite)
+    return;
+ var invites = data.invite;
+ for(var userIdKey in invite) {
+   if(!invites.hasOwnProperty(userIdKey))
+    continue;
+    var userId = invites[userIdKey];
+    sendUserInvite(userId, channel);
+ }
 }
 
+function handleInvite(connection, command, data) {
+ if(!data.channel)
+ 	return;
+ var channel = data.channel;
+ if(!data.user)
+ 	return;
+ var user = data.user;
+ sendUserInvite(userId, channel);
+}
+
+function handleGame(connection, command, data) {
+ if(!data.channel)
+ 	return;
+ var channel = data.channel;
+ if(!channels[channel])
+ 	return;
+ var message = {};
+ message["command"] = "game";
+ message["data"] = data;
+ for(connkey in channels[channel]) {
+    	if(!channels[channel].hasOwnProperty(connkey))
+    		continue;
+    	var exconnection = channels[channel][connkey];
+    	var sameClient = false;
+    	if(exconnection === connection)
+    		sameClient = true;
+    	if(true) //!sameClient
+    		handleConnectionSend(exconnection, message);
+ }
+}
 
 function handleClientOpen(connection, command, data) {
 }
@@ -189,10 +273,19 @@ function handleOpen(connection, command, data) {
 
 function handleClose(connection, command, data) {
  var userId = getUserIdForConnection(connection);
- if(userId == null)
-   return;
- sendUserNotification(userId, false, false);
- pruneUserConnections(userId);
+ if(userId != null) {
+  sendUserNotification(userId, false, false);
+  pruneUserConnections(userId);
+ }
+ var channel = getChannelForConnection(connection);
+ if(channel != null) {
+    var index = -1;
+    index = channels[channel].indexOf(connection);
+    if(index != -1) {
+        console.log(connection.remoteAddress + " is now Unbound from Channel: "+channel);
+        channels[channel].splice(index, 1);
+    }
+ }
 }
 
 //Presence
@@ -202,9 +295,9 @@ registerCallback("subscribe", handleSubscribe);
 registerCallback("userchange", handleUserChange);
 
 //Game
-//registerCallback("invite",handleJoinGame);
-//registerCallback("joingame",handleJoinGame);
-//registerCallback("game",handleGame);
+registerCallback("invite",handleInvite);
+registerCallback("joingame",handleJoinGame);
+registerCallback("game",handleGame);
 
 //Generic
 registerCallback("ClientOpen", handleClientOpen);
@@ -285,8 +378,6 @@ function handleConnectionClose(connection) {
     if (index !== -1) { // remove the connection from the pool
         console.log(connection.remoteAddress + " Disconnected");
         connections.splice(index, 1);
-    } else {
-     console.log(connection.remoteAddress + " Not Found");
     }
 }
 
