@@ -9,7 +9,7 @@
   <link rel="stylesheet" type="text/css" href="http://fonts.googleapis.com/css?family=Droid Sans">
   <link rel="stylesheet" type="text/css" href="/Style/Style.css">
 </head>
-<body onload="loginUser()">
+<body onload="start()">
   <h1>Turn Table Server</h1>
   <div id="Login">
   	<p>Enter Your ID:</p>
@@ -41,6 +41,10 @@
     var socksConnected = 0;
     var gameMsgInterval = -1;
 
+    function start() {
+	loginUser();
+    }
+
     function loginUser() {
 	var div;
         userId = null;
@@ -53,10 +57,6 @@
         div = document.getElementById("Games");
 	if(div)
 		div.style.visibility = "hidden";
-    }
-
-    function onGameData() {
-	
     }
 
     function logoutUser() {

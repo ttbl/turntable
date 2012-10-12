@@ -11,6 +11,8 @@ function getServer(id, Servers, hashfn) {
 	if(!hashfn)
 		hashfn = crc32;
 	var hash = hashfn(id);
+        if(hash < 0)
+		hash = -hash;
 	hash = hash % numServers;
 	curServer = Servers[hash];
 	return curServer;
