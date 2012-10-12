@@ -29,11 +29,13 @@ for nodenum in `seq $NUMAPPS`; do
 	echo "Deploying to $nodename"
 	{
 		cat static/Scripts/List.js.in | sed s/\$SERVERS/$SERVERS/g | sed s/\$SELF/$SELF/g | tr X \/ > List.js.tmp && mv List.js.tmp static/Scripts/List.js
+		cat package.json.in | sed s/\$nodename/$nodename/g > package.json.tmp && mv package.json.tmp package.json
 		{ yes yes | jitsu deploy; } 2>&1 >jitsu_deploy.log
 		if [ $? == 0 ]; then
 			echo "App available at $httpservname"
 		else
 			echo "App $nodename was not deployed."
+			exit -1
 		fi
 		rm -f jitsu_deploy.log
 	}

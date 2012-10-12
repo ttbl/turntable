@@ -4,7 +4,7 @@
   "scripts": {
     "start": "turntable.js"
   },
-  "version": "0.0.0-1",
+  "version": "0.0.0-9",
   "dependencies": {
     "crc": "0.2.x",
     "websocket": "1.0.x",

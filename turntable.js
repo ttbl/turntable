@@ -7,23 +7,20 @@ var webrootrel = "static";
 
 //Begin Common Config / Functions.
 var webroot = __dirname + "/" + webrootrel;
-var webrootinc = "." + "/" + webrootrel;
-var scriptroot = webrootinc + "/" + "Scripts";
-var serverList = require(scriptroot +"/"+"List");
-var SelfId = serverList.SelfId;
-var UserServers = serverList.UserServers;
-var ChatServers = serverList.ChatServers;
-var GameServers = serverList.GameServers;
-
 var crc = require('crc');
 if(!crc) {
  console.log("Unable to Get CRC.");
  process.exit(-1);
 }
 function crc32(string) {
-	return crc.crc32(string);
+    return crc.crc32(string);
 }
-var shard = require(scriptroot + "/"+"Shard");
+var serverList = require(webroot+"/Scripts/List.js");
+var SelfId = serverList.SelfId;
+var UserServers = serverList.UserServers;
+var ChatServers = serverList.ChatServers;
+var GameServers = serverList.GameServers;
+var shard = require(webroot+"/Scripts/Shard.js");
 getServer = shard.getServer;
 //End Common Config / Functions.
 
@@ -114,7 +111,7 @@ function sendUserInvite(userId, channel)
     if(userServer != SelfId )
       {
          if(!cconnections[userServer])  makeWebSocketClient(userServer);
-         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+server); return; }
+         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
          handleClientConnectionSend (userServer, cconnections[userServer], { command: "invite", data:dataSent });
      } else {
 		 var connection = users[userId];
@@ -192,7 +189,7 @@ function handleSubscribe(connection, command, data) {
     if(userServer != SelfId )
       {
          if(!cconnections[userServer])  makeWebSocketClient(userServer);
-         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+server); return; }
+         if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
 	 var message = {};
 	 message["command"]="subscribe";
 	 message["data"]=[userId];
