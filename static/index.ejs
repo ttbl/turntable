@@ -64,17 +64,18 @@
 	if(socksConnected > 0) 
 		return;
         userId = null;
-	if(client != null) {
+	if(client != null && client.close) {
 		client.close();
 	}
-	loginUser();
+	client = null;
 	gameId = null;
-	if(gclient != null) {
+	if(gclient != null && gclient.close) {
 		gclient.close();
 	}
 	gclient = null;
 	socksConnected = 0;
 	if(gameMsgInterval > 0) clearInterval(gameMsgInterval);
+	loginUser();
     }
 
     function getFriends(userId) {
