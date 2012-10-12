@@ -26,8 +26,12 @@
   	<p>List of Games</p>
 	No Games Found.
   </div>
+  <script>
+    var module = false;
+  </script>
   <script src="/Scripts/WebSocketClient.js" type="text/javascript" charset="utf-8"></script>
   <script src="/Scripts/List.js" type="text/javascript" charset="utf-8"></script>
+  <script src="/Scripts/CRC32.js" type="text/javascript" charset="utf-8"></script>
   <script src="/Scripts/Shard.js" type="text/javascript" charset="utf-8"></script>
   <script>
     var userId = null;
@@ -52,6 +56,19 @@
 	loginUser();
     }
 
+    function getFriends(userId) {
+	if(userId == "1:644850560") {
+		return [ "1:123", "1:345" ];
+	}
+	if(userId == "1:123") {
+		return [ "1:345", "1:644850560"];
+	}
+	if(userId == "1:345") {
+		return [ "1:123", "1:644850560"];
+	}
+	return [];
+    }
+
     function onConnected() {
         div = document.getElementById("Login");
 	if(div)
@@ -65,6 +82,7 @@
 	client.handleWebSocketSend({command: "idme", data: userId});
 	client.registerCallback("there", onUsers);
 	client.handleWebSocketSend({command: "whothere", data: {}});
+	client.handleWebSocketSend({command: "subscribe", data: getFriends(userId)});
     }
  
     function onDisconnected() {

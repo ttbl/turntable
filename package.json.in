@@ -6,6 +6,7 @@
   },
   "version": "0.0.0-1",
   "dependencies": {
+    "crc": "0.2.x",
     "websocket": "1.0.x",
     "express": "2.3.x",
     "ejs": "0.4.x",

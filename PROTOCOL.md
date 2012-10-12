@@ -56,7 +56,7 @@ Presence
 `
 4. Client gets a message from Server whenever it finds about a set of friends.
 `
-{ "command" : "userchange", "data":{"1:2345": false, "1:3456": true}}
+{ "command" : "userchange", "data":{"1:2345": "online", "1:3456": "offline", "1:789": "busy"}}
 `
 These message stream to the client when a friend connects/disconnects. We dont
 support idle messages.
@@ -68,7 +68,7 @@ Chat
 2. Client responds to Server with a Identification Message.
 3. Client joins (or create) a chatroom. We use Channel as the Id for this Server.
 `
-{ "command": "joinchat", "data":{ "channel": "CStrike_Evening", "invite": "1:2345"} }
+{ "command": "joinchat", "data":{ "channel": "CStrike_Evening", "invite": ["1:2345"]} }
 `
 Server Invites appropriate Users.
 `
@@ -88,7 +88,7 @@ Game
 2. Client responds to Server with a Identification Message.
 3. Client joins (or create) a gameroom. We use Channel as the Id for this Server.
 `
-{ "command": "joingame", "data":{ "channel": "CStrike", "toinvite": "1:2345", "teams": ["Terrorists", "Counters", "Spectators"]} }
+{ "command": "joingame", "data":{ "channel": "CStrike", "invite": ["1:2345"], "teams": ["Terrorists", "Counters", "Spectators"]} }
 `
 Server Invites appropriate Users.
 `
