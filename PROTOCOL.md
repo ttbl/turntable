@@ -72,8 +72,7 @@ Server Invites appropriate Users.
 `
 { "command": "invite", "data":{ "channel": "CStrike"} } 
 `
-3. Server notifies Chat room when People Join/Leave Chat, or Change Teams, Just like in Presence.
-4. Client sends a Game Action, which is sent to all Members.
+3. Client sends a Game Action, which is sent to all Members.
 `
 { "command": "game", "data":{"channel": "CStrike", actions:[{"timestamp": 10223232, "from":"1:23456", "data": {"strike_one":"1:1234"}]}}
 `
