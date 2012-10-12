@@ -14,14 +14,24 @@ done
 which jitsu 2>&1 >/dev/null || { echo "Please Install Jitsu Manually." ; exit -1 ; }
 
 NUMAPPS=35
+SERVERS=
 for nodenum in `seq $NUMAPPS`; do
 	nodename=turntable`printf %03d $nodenum`
+	wsservname=ws:XX$nodename.jit.su
+	SERVERS=$SERVERS\\\"$wsservname\\\",
+done
+
+for nodenum in `seq $NUMAPPS`; do
+	nodename=turntable`printf %03d $nodenum`
+	httpservname=http://$nodename.jit.su
+	wsservname=ws://$nodename.jit.su
+	SELF=ws:XX$nodename.jit.su
 	echo "Deploying to $nodename"
 	{
-		cat package.json.in | sed s/\$nodename/$nodename/g > package.json.tmp && mv package.json.tmp package.json
+		cat static/Scripts/List.js.in | sed s/\$SERVERS/$SERVERS/g | sed s/\$SELF/$SELF/g | tr X \/ > List.js.tmp && mv List.js.tmp static/Scripts/List.js
 		{ yes yes | jitsu deploy; } 2>&1 >jitsu_deploy.log
 		if [ $? == 0 ]; then
-			echo "App available at http://$nodename.jit.su"
+			echo "App available at $httpservname"
 		else
 			echo "App $nodename was not deployed."
 		fi
