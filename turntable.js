@@ -19,6 +19,9 @@ if(!crc) {
  console.log("Unable to Get CRC.");
  process.exit(-1);
 }
+function crc32(string) {
+	return crc.crc32(string);
+}
 var shard = require(scriptroot + "/"+"Shard");
 getServer = shard.getServer;
 //End Common Config / Functions.
@@ -87,7 +90,7 @@ function pruneUserConnections(userId) {
  console.log("Removing User: "+userId+" ....");
  var connection = users[userId];
  delete users[userId];
- if(!connection) 
+ if(!connection)
 	return;
  for(otherUserId in sub_users) {
      if(!sub_users.hasOwnProperty(otherUserId))
@@ -95,8 +98,31 @@ function pruneUserConnections(userId) {
        index = sub_users[otherUserId].indexOf(connection);
        if (index !== -1) { // remove the connection from the pool
            sub_users[otherUserId].splice(index, 1);
-       } 
+       }
  }
+}
+
+function handleWhoThere(connection, command, data) {
+ var usersCurrent = [];
+ for(userId in users) {
+  if(!users.hasOwnProperty(userId))
+continue;
+   usersCurrent.push(userId);
+ }
+ handleConnectionSend(connection, {command: "there", data: usersCurrent});
+}
+
+function handleIdMe(connection, command, data) {
+ var userId = data;
+ var exconnection = users[userId];
+ if(exconnection) {
+  console.log("Already Connected User: "+userId+", Disconnecting ....");
+  connection.close();
+  return;
+ }
+ users[userId] = connection;
+ sendUserNotification(userId, true, false);
+ console.log("Adding User: "+userId+" ....");
 }
 
 function handleUserChange(connection, command, data) {
@@ -116,10 +142,6 @@ function handleUserChange(connection, command, data) {
    console.log(" " + userId + " is now " + status);
    sendUserNotification(userId, isOnline, isBusy);
   }
-}
-
-function crc32(string) {
-	return crc.crc32(string);
 }
 
 function handleSubscribe(connection, command, data) {
@@ -146,28 +168,14 @@ function handleSubscribe(connection, command, data) {
  }
 }
 
-function handleIdMe(connection, command, data) {
- var userId = data;
- var exconnection = users[userId];
- if(exconnection) {
-  console.log("Already Connected User: "+userId+", Disconnecting ....");
-  connection.close();
-  return;
- }
- users[userId] = connection;
- sendUserNotification(userId, true, false);
- console.log("Adding User: "+userId+" ....");
+function handleGameClient(connection, command, data){
+  //change player state
+  var dict = JSON.parse(data);
+  var id = dict["id"];
+  var payload = dict["payload"];
+  handleConnectionSend(users[id], {command: "game", data: payload });
 }
 
-function handleWhoThere(connection, command, data) {
- var usersCurrent = [];
- for(userId in users) {
-  if(!users.hasOwnProperty(userId))
-continue;
-   usersCurrent.push(userId);
- }
- handleConnectionSend(connection, {command: "there", data: usersCurrent});
-}
 
 function handleClientOpen(connection, command, data) {
 }
@@ -187,10 +195,18 @@ function handleClose(connection, command, data) {
  pruneUserConnections(userId);
 }
 
+//Presence
 registerCallback("whothere", handleWhoThere);
 registerCallback("idme", handleIdMe);
 registerCallback("subscribe", handleSubscribe);
 registerCallback("userchange", handleUserChange);
+
+//Game
+//registerCallback("invite",handleJoinGame);
+//registerCallback("joingame",handleJoinGame);
+//registerCallback("game",handleGame);
+
+//Generic
 registerCallback("ClientOpen", handleClientOpen);
 registerCallback("ClientClose", handleClientClose);
 registerCallback("Open", handleOpen);
