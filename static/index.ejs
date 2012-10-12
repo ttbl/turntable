@@ -36,6 +36,10 @@
   <script>
     var userId = null;
     var client = null;
+    var gameId = "CStrike";
+    var gclient = null;
+    var socksConnected = 0;
+    var gameMsgInterval = -1;
 
     function loginUser() {
 	var div;
@@ -51,9 +55,26 @@
 		div.style.visibility = "hidden";
     }
 
+    function onGameData() {
+	
+    }
+
     function logoutUser() {
+	--socksConnected;
+	if(socksConnected > 0) 
+		return;
         userId = null;
+	if(client != null) {
+		client.close();
+	}
 	loginUser();
+	gameId = null;
+	if(gclient != null) {
+		gclient.close();
+	}
+	gclient = null;
+	socksConnected = 0;
+	if(gameMsgInterval > 0) clearInterval(gameMsgInterval);
     }
 
     function getFriends(userId) {
@@ -70,6 +91,12 @@
     }
 
     function onConnected() {
+	if(socksConnected == 0) {
+		++socksConnected;
+		return;
+	} else {
+		++socksConnected;
+	}
         div = document.getElementById("Login");
 	if(div)
 		div.style.visibility = "hidden";
@@ -83,7 +110,13 @@
 	client.registerCallback("there", onUsers);
 	client.handleWebSocketSend({command: "whothere", data: {}});
 	client.handleWebSocketSend({command: "subscribe", data: getFriends(userId)});
+	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, invite: getFriends(userId) }});
+	gameMsgInterval = setInterval(function(){sendGame();},1000);
     }
+   
+    function sendGame() {
+	gclient.handleWebSocketSend({command: "game", data: {channel: gameId, actions:[{user: userId, move:"test"}]}});
+    } 
  
     function onDisconnected() {
 	logoutUser();
@@ -106,6 +139,14 @@
 		div.innerHTML = users;
 	}
     }
+ 
+    function onInvite(data) {
+	console.log("Got Invited to: %o", data);	
+    }
+
+    function onGame(data) {
+	console.log("Game Data: %o", data);	
+    }
 
     function onLoggedIn() {
 	userIdInput = document.getElementById("iduser");
@@ -120,7 +161,14 @@
     	client = new WebSocketClient();
 	client.registerCallback("Open", onConnected);
 	client.registerCallback("Close", onDisconnected);
+	client.registerCallback("invite", onInvite);
     	client.connect(userServer);
+	var gameServer = getServer(gameId, GameServers);
+	gclient = new WebSocketClient();
+	gclient.registerCallback("Open", onConnected);
+	gclient.registerCallback("game", onGame);
+	gclient.registerCallback("Close", onDisconnected);
+	gclient.connect(gameServer);
     }
   </script>
 </body>

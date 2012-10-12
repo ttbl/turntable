@@ -44,7 +44,7 @@ function dispatchCommand(connection, command, data) {
   if(handler) {
    handler(connection, command, data);
   } else {
-   console.log("Recieved but not able to Dispatch Message: %o %o", command, data);
+   console.log("Recieved but not able to Dispatch Message: ", command, data);
   }
  }
 }
@@ -182,7 +182,6 @@ function handleUserChange(connection, command, data) {
 }
 
 function handleSubscribe(connection, command, data) {
-  console.log(data);
   for(var userIdKey in data) {
     if(!data.hasOwnProperty(userIdKey))
     continue;
@@ -225,7 +224,7 @@ function handleJoinGame(connection, command, data) {
  if(!data.invite)
     return;
  var invites = data.invite;
- for(var userIdKey in invite) {
+ for(var userIdKey in invites) {
    if(!invites.hasOwnProperty(userIdKey))
     continue;
     var userId = invites[userIdKey];
@@ -395,6 +394,7 @@ function handleConnectionMessage(connection, message) {
         }
     } catch (e) {
         console.log("Handle Message Error: "+e.toString());
+        console.log("Message Was: ", message);
     }
 }
 
