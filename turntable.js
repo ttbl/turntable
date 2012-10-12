@@ -107,13 +107,13 @@ function sendUserInvite(userId, channel)
 {
     var userServer = getServer(userId, UserServers, crc32);
     console.log("User Server: "+userServer);
+    var dataSent = {};
+    dataSent["user"] = userId;
+    dataSent["channel"] = channel;
     if(userServer != SelfId )
       {
          if(!cconnections[userServer])  makeWebSocketClient(userServer);
          if(!cconnections[userServer]) { console.log("Not Connected to Server: "+server); return; }
-         var dataSent = {};
-         dataSent["user"] = userId;
-         dataSent["channel"] = channel;
          handleClientConnectionSend (userServer, cconnections[userServer], { command: "invite", data:dataSent });
      } else {
 		 var connection = users[userId];
