@@ -108,10 +108,10 @@
 	gclient.registerCallback("game", onGame);
 	gclient.registerCallback("Close", onDisconnected);
 	gclient.connect(gameServer);
-	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, invite: getFriends(userId) }});
     }
   
     function onGameStart() {
+	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, invite: getFriends(userId) }});
 	gameMsgInterval = setInterval(function(){sendGame();},1000);
     }
 
