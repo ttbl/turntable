@@ -14,6 +14,7 @@ done
 which jitsu 2>&1 >/dev/null || { echo "Please Install Jitsu Manually." ; exit -1 ; }
 
 NUMAPPS=35
+OFFSET=
 SERVERS=
 for nodenum in `seq $NUMAPPS`; do
 	nodename=turntable`printf %03d $nodenum`
@@ -21,7 +22,7 @@ for nodenum in `seq $NUMAPPS`; do
 	SERVERS=$SERVERS\\\"$wsservname\\\",
 done
 
-for nodenum in `seq $NUMAPPS`; do
+for nodenum in `seq $OFFSET $NUMAPPS`; do
 	nodename=turntable`printf %03d $nodenum`
 	httpservname=http://$nodename.jit.su
 	wsservname=ws://$nodename.jit.su
@@ -30,13 +31,21 @@ for nodenum in `seq $NUMAPPS`; do
 	{
 		cat static/Scripts/List.js.in | sed s/\$SERVERS/$SERVERS/g | sed s/\$SELF/$SELF/g | tr X \/ > List.js.tmp && mv List.js.tmp static/Scripts/List.js
 		cat package.json.in | sed s/\$nodename/$nodename/g > package.json.tmp && mv package.json.tmp package.json
-		{ yes yes | jitsu deploy; } 2>&1 >jitsu_deploy.log
-		if [ $? == 0 ]; then
-			echo "App available at $httpservname"
-		else
-			echo "App $nodename was not deployed."
+		retries=5
+		done=0
+		while  [ $retries != 0 -a $done == 0 ] ; do
+			{ yes yes | jitsu deploy; } 2>&1 >jitsu_deploy.log
+			if [ $? == 0 ]; then
+				echo "App available at $httpservname"
+				done=1
+			else
+				echo "Re-Deploying to $nodename"
+				retries=`expr $retries - 1`
+			fi
+		done
+		if [ $done == 0 ] ; then
+			echo "App $nodename was not deployed. Aborting ..."
 			exit -1
 		fi
-		rm -f jitsu_deploy.log
 	}
 done
