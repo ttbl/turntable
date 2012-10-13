@@ -48,8 +48,6 @@ WebSocketClient.prototype.connect = function(docURL) {
 
 WebSocketClient.prototype.handleWebSocketSend = function(message) {
     var messageinjson = JSON.stringify(message);
-    if(console)
-       console.log("Sending: "+messageinjson);
     this.socket.send(messageinjson);
 };
 

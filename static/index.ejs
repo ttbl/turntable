@@ -22,10 +22,6 @@
   	<p>List of Users</p>
 	No Users Found.
   </div>
-  <div id="Games">
-  	<p>List of Games</p>
-	No Games Found.
-  </div>
   <script>
     var module = false;
   </script>
@@ -36,9 +32,10 @@
   <script>
     var userId = null;
     var client = null;
+    var onlineFriends = {};
+    var offlineFriends = {};
     var gameId = "CStrike";
     var gclient = null;
-    var socksConnected = 0;
     var gameMsgInterval = -1;
 
     function start() {
@@ -54,26 +51,25 @@
         div = document.getElementById("Users");
 	if(div)
 		div.style.visibility = "hidden";
-        div = document.getElementById("Games");
-	if(div)
-		div.style.visibility = "hidden";
     }
 
     function logoutUser() {
-	--socksConnected;
-	if(socksConnected > 0) 
-		return;
         userId = null;
-	if(client != null && client.close) {
-		client.close();
+	try {
+		if(client != null && client.close) {
+			client.close();
+		}
+	} catch(e) {
 	}
 	client = null;
 	gameId = null;
-	if(gclient != null && gclient.close) {
-		gclient.close();
+	try {
+		if(gclient != null && gclient.close) {
+			gclient.close();
+		}
+	} catch(e) {
 	}
 	gclient = null;
-	socksConnected = 0;
 	if(gameMsgInterval > 0) clearInterval(gameMsgInterval);
 	loginUser();
     }
@@ -92,29 +88,33 @@
     }
 
     function onConnected() {
-	if(socksConnected == 0) {
-		++socksConnected;
-		return;
-	} else {
-		++socksConnected;
-	}
         div = document.getElementById("Login");
 	if(div)
 		div.style.visibility = "hidden";
         div = document.getElementById("Users");
 	if(div)
 		div.style.visibility = "visible";
-        div = document.getElementById("Games");
-	if(div)
-		div.style.visibility = "visible";
 	client.handleWebSocketSend({command: "idme", data: userId});
-	client.registerCallback("there", onUsers);
-	client.handleWebSocketSend({command: "whothere", data: {}});
+	client.registerCallback("userchange", onUsers);
 	client.handleWebSocketSend({command: "subscribe", data: getFriends(userId)});
-	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, invite: getFriends(userId) }});
-	gameMsgInterval = setInterval(function(){sendGame();},1000);
+	gameStart();
     }
    
+    function gameStart() {
+	var gameServer = getServer(gameId, GameServers);
+	gclient = new WebSocketClient();
+	gclient.registerCallback("idyou", onId);
+	gclient.registerCallback("Open", onGameStart);
+	gclient.registerCallback("game", onGame);
+	gclient.registerCallback("Close", onDisconnected);
+	gclient.connect(gameServer);
+	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, invite: getFriends(userId) }});
+    }
+  
+    function onGameStart() {
+	gameMsgInterval = setInterval(function(){sendGame();},1000);
+    }
+
     function sendGame() {
 	gclient.handleWebSocketSend({command: "game", data: {channel: gameId, actions:[{user: userId, move:"test"}]}});
     } 
@@ -127,22 +127,56 @@
         div = document.getElementById("Users");
 	if(div) {
 		var users;
-		if(data)
-			for(userid in data) {
-				if(data.hasOwnProperty(userid)) {
-					if(!users)
-						users = "These Users are Present: ";
-					else
-						users += ",";
-					users += "<b>"+data[userid]+"</b>";
-				}
+		if(!data)
+			return;
+		for(userid in data) {
+			if(data.hasOwnProperty(userid)) {
+				var status = data[userid];
+				delete onlineFriends[userid];
+				delete offlineFriends[userid];
+				if(status == "offline")
+					offlineFriends[userid] = userid;
+				else
+					onlineFriends[userid] = userid;
+				if(!users)
+					users = "These Users are Present: ";
+				else
+					users += ",";
 			}
-		div.innerHTML = users;
+		}
+		offlineusers=null;
+		for(friend in offlineFriends) {
+			if(!offlineusers)
+				offlineusers = "Offline: ";
+			else
+				offlineusers += ",";
+			offlineusers += "<b>"+friend+"</b>";
+		}
+		onlineusers=null;
+		for(friend in onlineFriends) {
+			if(!onlineusers)
+				onlineusers = "Online: ";
+			else
+				onlineusers += ",";
+			onlineusers += "<b>"+friend+"</b>";
+		}
+		usersmsg = "";
+		if(offlineusers) {
+			usersmsg += offlineusers+"<br/>";
+		}
+		if(onlineusers) {
+			usersmsg += onlineusers+"<br/>";
+		}
+		div.innerHTML = usersmsg;
 	}
     }
  
+    function onId(data) {
+	console.log("Got an Identification Request.");	
+    }
+
     function onInvite(data) {
-	console.log("Got Invited to: %o", data);	
+	console.log("Got Invited to a Game: %o", data);	
     }
 
     function onGame(data) {
@@ -160,16 +194,11 @@
     function connectServer() {
     	var userServer = getServer(userId, UserServers);
     	client = new WebSocketClient();
+	client.registerCallback("idyou", onId);
 	client.registerCallback("Open", onConnected);
 	client.registerCallback("Close", onDisconnected);
 	client.registerCallback("invite", onInvite);
     	client.connect(userServer);
-	var gameServer = getServer(gameId, GameServers);
-	gclient = new WebSocketClient();
-	gclient.registerCallback("Open", onConnected);
-	gclient.registerCallback("game", onGame);
-	gclient.registerCallback("Close", onDisconnected);
-	gclient.connect(gameServer);
     }
   </script>
 </body>

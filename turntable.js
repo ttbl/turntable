@@ -68,6 +68,25 @@ function getUserIdForConnection(connection)
    return null;
 }
 
+function sendRemoteMessage(serverAddress, command, data) {
+	var message = {};
+	message["command"] = command;
+	message["data"] = data;
+        if(!wsClients[serverAddress] || !cconnections[serverAddress]) {
+		if(!wsClients[serverAddress]) wsClients[serverAddress] = makeWebSocketClient(serverAddress); //Must Batch These!
+		setTimeout(function() {
+         		if(!cconnections[serverAddress]) {
+				 console.log("Not Connected to Server: "+serverAddress);
+				 console.log("Unable to Deliver Message: ",command, data);
+				 return;
+			}
+         	        handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
+		}, 1000);
+	} else {
+               handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
+	}
+}
+
 function queueUserMessage(userId, command, data) {
 	if(!user_messages[userId]) {
 		user_messages[userId]=[];
@@ -125,9 +144,12 @@ function sendUserNotification(userId, isOnline, isBusy)
     if(!subscribers.hasOwnProperty(connkey))
      continue;
     var connection = subscribers[connkey];
-    handleConnectionSend(connection, {command: "userchange", data:users});
+    setTimeout(function() {
+        handleConnectionSend(connection, {command: "userchange", data:users});
+    }, 500);
  }
 }
+
 
 function sendUserInvite(userId, channel)
 {
@@ -137,11 +159,7 @@ function sendUserInvite(userId, channel)
     dataSent["channel"] = channel;
     if(userServer != SelfId )
       {
-         if(!wsClients[userServer]) wsClients[userServer] = makeWebSocketClient(userServer); //Must Batch These!
-	 setTimeout(function() {
-         	if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
-         	handleClientConnectionSend (userServer, cconnections[userServer], { command: "invite", data:dataSent });
-	}, 250);
+	 sendRemoteMessage(userServer, "invite", dataSent);
      } else {
 	 var connection = users[userId];
 	 if(connection) {
@@ -218,26 +236,21 @@ function handleSubscribe(connection, command, data) {
     var userId = data[userIdKey];
     var userServer = getServer(userId, UserServers, crc32);
     if(!sub_users[userId]) sub_users[userId] = [];
-     var index = -1;
-     index = sub_users[userId].indexOf(connection);
-     if(index == -1) {
-       console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
-       sub_users[userId].push(connection);
+    var index = -1;
+    index = sub_users[userId].indexOf(connection);
+    if(index == -1) {
+ 	   console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
+           sub_users[userId].push(connection);
+    } else {
+ 	   console.log(" " + connection.remoteAddress + " is already Subscribed to " + userId);
     }
     if(userServer != SelfId )
       {
-         if(!wsClients[userServer]) wsClients[userServer] = makeWebSocketClient(userServer);
-	 setTimeout(function() {
-         	if(!cconnections[userServer]) { console.log("Not Connected to Server: "+userServer); return; }
-	        var message = {};
-	        message["command"]=command;
-	        message["data"]=[userId];
-                handleClientConnectionSend (userServer, cconnections[userServer], message);
-	}, 250);
+	 sendRemoteMessage(userServer, command, [userId]);
      } else {
-	var isOnline = false;
-	if(users[userId] != null)
-		isOnline = true;
+	var isOnline = true;
+	if(!users[userId])
+		isOnline = false;
 	var isBusy = false;
 	sendUserNotification(userId, isOnline, isBusy);
      }
@@ -367,6 +380,7 @@ function handleClientConnectionOpen(serverAddress, cconnection) {
 }
 
 function handleClientConnectionClose(serverAddress, cconnection) {
+  delete wsClients[serverAddress];
   delete cconnections[serverAddress];
   dispatchCommand(cconnection, "ClientClose", null);
 }
@@ -381,11 +395,16 @@ function makeWebSocketClient(serverAddress) {
  wsClient.on('connectFailed', function(e) {
     console.log('Client Connect Exception: ' + e.toString());
  });
- wsClient.on('connect', function(cconnection) {
+ var retries = 5;
+ clientConnectFunction = function(cconnection) {
    //Handle open Connection
    handleClientConnectionOpen(serverAddress, cconnection);
    cconnection.on('error', function(e) {
      console.log("Connection Error: " + e.toString());
+     --retries;
+     if(retries > 0) {
+	setTimeout(function() { wsClient.connect(serverAddress, 'turntable'); }, 100);
+     }
    });
    cconnection.on('message', function(message) {
      handleClientConnectionMessage(serverAddress, cconnection, message);
@@ -393,7 +412,9 @@ function makeWebSocketClient(serverAddress) {
    cconnection.on('close', function() {
       handleClientConnectionClose(serverAddress, cconnection);
    });
- });
+ }
+ wsClient.on('connect', clientConnectFunction);
+ console.log("Making Connection to: "+serverAddress);
  wsClient.connect(serverAddress, 'turntable');
  return wsClient;
 }
@@ -499,6 +520,7 @@ return;
 
 //Begin Process Handling Code.
 function handleExit() {
+ try {
  console.log("");
  console.log("Exiting .... ");
  wsServer.unmount();
@@ -518,8 +540,10 @@ function handleExit() {
     handleClientConnectionClose(connkey, connection);
     cconnection.close();
  }
- wsServer.shutDown();
- app.close();
+    wsServer.shutDown();
+    app.close();
+ } catch (e) {
+ }
  console.log("Process was Exited.");
  process.exit(0);
 }
