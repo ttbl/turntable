@@ -77,7 +77,8 @@ function sendRemoteMessage(serverAddress, command, data) {
 		setTimeout(function() {
          		if(!cconnections[serverAddress]) {
 				 console.log("Not Connected to Server: "+serverAddress);
-				 console.log("Unable to Deliver Message: ",command, data);
+				 console.log("Retrying to Deliver Message: ",command, data);
+				 sendRemoteMessage(serverAddress, command, data);
 				 return;
 			}
          	        handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
