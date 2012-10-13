@@ -217,6 +217,13 @@ function handleSubscribe(connection, command, data) {
     continue;
     var userId = data[userIdKey];
     var userServer = getServer(userId, UserServers, crc32);
+    if(!sub_users[userId]) sub_users[userId] = [];
+     var index = -1;
+     index = sub_users[userId].indexOf(connection);
+     if(index == -1) {
+       console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
+       sub_users[userId].push(connection);
+    }
     if(userServer != SelfId )
       {
          if(!wsClients[userServer]) wsClients[userServer] = makeWebSocketClient(userServer);
@@ -227,13 +234,12 @@ function handleSubscribe(connection, command, data) {
 	        message["data"]=[userId];
                 handleClientConnectionSend (userServer, cconnections[userServer], message);
 	}, 250);
-     }
-     if(!sub_users[userId]) sub_users[userId] = [];
-     var index = -1;
-     index = sub_users[userId].indexOf(connection);
-     if(index == -1) {
-       console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
-       sub_users[userId].push(connection);
+     } else {
+	var isOnline = false;
+	if(users[userId] != null)
+		isOnline = true;
+	var isBusy = false;
+	sendUserNotification(userId, isOnline, isBusy);
      }
  }
 }
