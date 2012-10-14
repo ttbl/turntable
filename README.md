@@ -1,7 +1,7 @@
 turntable
 =========
 
-Turn Based Server in Websocket-Node
+Game and Presence Server in [Websocket-Node](https://github.com/Worlize/WebSocket-Node/)
 
 Running and Installation
 ------------------------

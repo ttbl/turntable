@@ -23,7 +23,10 @@ Sharding
 Each Object we support is Sharded among K ( > 0 ) servers. If there are K servers available, an Object whose Id is sharded as:
 
 `
-Server(Id) = Crc32(Id) % K.
+Hash = Crc32(Id)
+if(Hash < 0) 
+    Hash = -Hash
+Server = Hash % K.
 `
 
 For requesting an Objects status, you simply have to connect to the appropriate server. 
@@ -58,7 +61,7 @@ Presence
 { "command" : "userchange", "data":{"1:2345": "online", "1:3456": "offline", "1:789": "busy"}}
 `
 These message stream to the client when a friend connects/disconnects. We dont
-support idle messages.
+support idle messages, though we could.
 
 Game
 ----
