@@ -20,18 +20,15 @@ As of version 2, we plan to use an alternative Binary protocol. (TBD)
 Sharding
 --------
 
-Each Object we support is Sharded among K ( > 0 ) servers. If there are K servers available, an Object whose Id is sharded as:
+Each Object we support is Sharded among K ( > 0 ) servers. If there are K servers available, an Object identified by Id is sharded to:
 
 `
-Hash = Crc32(Id)
-if(Hash < 0) 
-    Hash = -Hash
-Server = Hash % K.
+Server = Abs(Crc32(Id)) % K
 `
 
-For requesting an Objects status, you simply have to connect to the appropriate server. 
+For requesting an Objects status, you simply have to connect to the appropriate server. An Object can be a User or a Channel.
 
-This is an exemption for Presence information of your friends. Your own server performs this operation in bulk for you.
+For Presence Information, your own server handles it efficiently for you.
 
 Features
 --------
