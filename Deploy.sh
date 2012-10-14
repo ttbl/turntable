@@ -37,6 +37,7 @@ for nodenum in `seq $OFFSET $NUMAPPS`; do
 			{ yes yes | jitsu deploy; } 2>&1 >jitsu_deploy.log
 			if [ $? == 0 ]; then
 				echo "App available at $httpservname"
+				rm -f jitsu_deploy.log
 				done=1
 			else
 				echo "Re-Deploying to $nodename"

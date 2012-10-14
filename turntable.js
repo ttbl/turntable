@@ -13,7 +13,7 @@ if(!crc) {
  process.exit(-1);
 }
 function crc32(string) {
-    return crc.crc32(string);
+ return crc.crc32(string);
 }
 var serverList = require(webroot+"/Scripts/List.js");
 var SelfId = serverList.SelfId;
@@ -53,82 +53,79 @@ function dispatchCommand(connection, command, data) {
 //Begin Command Variables.
 var users = {}; //User to Connections Map.
 var sub_users = {}; //User to Subscribed Connections Map.
-var user_messages = {}; //User Offline Message Queue.
+var messages = {}; //Message Queue.
 var channels = {}; //Channels to Array of Connections Map.
 //End Command Variables.
 
 function getUserIdForConnection(connection)
 {
-   for(var userId in users) {
-    if(!users.hasOwnProperty(userId))
-      continue;
-    if(users[userId] == connection)
-      return userId;
-   }
-   return null;
+ for(var userId in users) {
+  if(!users.hasOwnProperty(userId))
+   continue;
+  if(users[userId] == connection)
+    return userId;
+ }
+ return null;
 }
 
 function sendRemoteMessage(serverAddress, command, data) {
-	var message = {};
-	message["command"] = command;
-	message["data"] = data;
-        if(!wsClients[serverAddress] || !cconnections[serverAddress]) {
-		if(!wsClients[serverAddress]) wsClients[serverAddress] = makeWebSocketClient(serverAddress); //Must Batch These!
-		setTimeout(function() {
-         		if(!cconnections[serverAddress]) {
-				 console.log("Not Connected to Server: "+serverAddress);
-				 console.log("Retrying to Deliver Message: ",command, data);
-				 sendRemoteMessage(serverAddress, command, data);
-				 return;
-			}
-         	        handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
-		}, 1000);
-	} else {
-               handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
-	}
+ if(!cconnections[serverAddress]) {
+   makeWebSocketClient(serverAddress); //Must Batch These!
+   queueMessage(serverAddress, command, data);
+ } else {
+   var message = {};
+   message["command"] = command;
+   message["data"] = data;
+   handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
+   handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
+ }
 }
 
-function queueUserMessage(userId, command, data) {
-	if(!user_messages[userId]) {
-		user_messages[userId]=[];
-	}
-	var message = {};
-	message["command"] = command;
-	message["data"] = data;
-	user_messages[userId].push(message);
+function queueMessage(queueId, command, data) {
+ if(!messages[queueId]) {
+  messages[queueId]=[];
+ }
+ var message = {};
+ message["command"] = command;
+ message["data"] = data;
+ messages[queueId].push(message);
 }
 
-function dequeUserMessages(userId) {
-	var messages = user_messages[userId];
-	var connection = users[userId];
-	if(!connection)
-          return;
-	if(!messages)
-	  return;
-	else
-          delete user_messages[userId];
-        for(var messageKey in messages) {
-		if(!messages.hasOwnProperty(messageKey))
-			continue;
-		var message = messages[messageKey];
-    		handleConnectionSend(connection, message); //Ideally Check Expiry.
-	} 
+function dequeMessages(queueId, connections) {
+ var queueMessages = messages[queueId];
+ if(!queueMessages)
+    return;
+ if(!connections)
+    return;
+ console.log("Emptying Message Queue: "+queueId);
+ delete messages[queueId];
+ for(var queueMessageKey in queueMessages) {
+   if(!queueMessages.hasOwnProperty(queueMessageKey))
+    continue;
+   var queueMessage = queueMessages[queueMessageKey];
+   for(connKey in connections) {
+    if(!connections.hasOwnProperty(connKey))
+     continue;
+    var connection = connections[connKey];
+    handleConnectionSend(connection, queueMessage);
+   }
+ }
 }
 
 function getChannelForConnection(connection)
 {
-   for(var channel in channels) {
-    if(!channels.hasOwnProperty(channel))
-      continue;
-    for(connkey in channels[channel]) {
-    	if(!channels[channel].hasOwnProperty(connkey))
-    		continue;
-    	var exconnection = channels[channel][connkey];
-    	if(exconnection === connection)
-    		return channel;
-    }
-   }
-   return null;
+ for(var channel in channels) {
+  if(!channels.hasOwnProperty(channel))
+    continue;
+  for(connKey in channels[channel]) {
+    if(!channels[channel].hasOwnProperty(connKey))
+     continue;
+    var exconnection = channels[channel][connKey];
+    if(exconnection === connection)
+     return channel;
+  }
+ }
+ return null;
 }
 
 function sendUserNotification(userId, isOnline, isBusy)
@@ -136,21 +133,18 @@ function sendUserNotification(userId, isOnline, isBusy)
   if(!sub_users.hasOwnProperty(userId))
      return;
   var subscribers = sub_users[userId];
-  var status=isOnline?"online":"offline";
+  var status=isOnline? "online":"offline";
   var users={}; users[userId] = status;
   if(isOnline && isBusy)
      status="busy";
   console.log("Notifying that User: "+userId+" is "+ status + " ....");
-  for(connkey in subscribers) {
-    if(!subscribers.hasOwnProperty(connkey))
+  for(connKey in subscribers) {
+    if(!subscribers.hasOwnProperty(connKey))
      continue;
-    var connection = subscribers[connkey];
-    setTimeout(function() {
-        handleConnectionSend(connection, {command: "userchange", data:users});
-    }, 500);
+    var connection = subscribers[connKey];
+    handleCommandSend(connection, "userchange", users);
  }
 }
-
 
 function sendUserInvite(userId, channel)
 {
@@ -158,17 +152,16 @@ function sendUserInvite(userId, channel)
     var dataSent = {};
     dataSent["user"] = userId;
     dataSent["channel"] = channel;
-    if(userServer != SelfId )
-      {
-	 sendRemoteMessage(userServer, "invite", dataSent);
+    if(userServer != SelfId ) {
+     sendRemoteMessage(userServer, "invite", dataSent);
+    } else {
+     var connection = users[userId];
+     if(connection) {
+       handleCommandSend (connection, "invite", dataSent);
      } else {
-	 var connection = users[userId];
-	 if(connection) {
-       		handleConnectionSend (connection, { command: "invite", data:dataSent });
-	 } else {
-		queueUserMessage(userId, "invite", dataSent);
-	}
+       queueMessage(userId, "invite", dataSent);
      }
+   }
 }
 
 function pruneUserConnections(userId) {
@@ -176,14 +169,14 @@ function pruneUserConnections(userId) {
  var connection = users[userId];
  delete users[userId];
  if(!connection)
-	return;
+   return;
  for(otherUserId in sub_users) {
      if(!sub_users.hasOwnProperty(otherUserId))
-	continue;
-       index = sub_users[otherUserId].indexOf(connection);
-       if (index !== -1) { // remove the connection from the pool
-           sub_users[otherUserId].splice(index, 1);
-       }
+      continue;
+     index = sub_users[otherUserId].indexOf(connection);
+     if (index !== -1) { // remove the connection from the pool
+       sub_users[otherUserId].splice(index, 1);
+     }
  }
 }
 
@@ -194,7 +187,7 @@ function handleWhoThere(connection, command, data) {
     continue;
    usersCurrent.push(userId);
  }
- handleConnectionSend(connection, {command: "there", data: usersCurrent});
+ handleCommandSend (connection, "there", usersCurrent);
 }
 
 function handleIdMe(connection, command, data) {
@@ -207,7 +200,7 @@ function handleIdMe(connection, command, data) {
  }
  users[userId] = connection;
  sendUserNotification(userId, true, false);
- dequeUserMessages(userId);
+ dequeMessages(userId, [connection]);
  console.log("Adding User: "+userId+" ....");
 }
 
@@ -240,27 +233,25 @@ function handleSubscribe(connection, command, data) {
     var index = -1;
     index = sub_users[userId].indexOf(connection);
     if(index == -1) {
- 	   console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
-           sub_users[userId].push(connection);
+     console.log(" " + connection.remoteAddress + " is now Subscribed to " + userId);
+     sub_users[userId].push(connection);
     } else {
- 	   console.log(" " + connection.remoteAddress + " is already Subscribed to " + userId);
+     console.log(" " + connection.remoteAddress + " is already Subscribed to " + userId);
     }
-    if(userServer != SelfId )
-      {
-	 sendRemoteMessage(userServer, command, [userId]);
-     } else {
-	var isOnline = true;
-	if(!users[userId])
-		isOnline = false;
-	var isBusy = false;
-	sendUserNotification(userId, isOnline, isBusy);
-     }
+    if(userServer != SelfId ) {
+      sendRemoteMessage(userServer, command, [userId]);
+    } else {
+      var isOnline = true;
+      if(!users[userId]) isOnline = false;
+      var isBusy = false;
+      sendUserNotification(userId, isOnline, isBusy);
+    }
  }
 }
 
 function handleJoinGame(connection, command, data) {
  if(!data.channel)
- 	return;
+ return;
  var channel = data.channel;
  if(!channels[channel]) {
     console.log("Creating Channel: "+channel+" ....");
@@ -285,39 +276,30 @@ function handleJoinGame(connection, command, data) {
 
 function handleInvite(connection, command, data) {
  if(!data.channel)
- 	return;
+ return;
  var channel = data.channel;
  if(!data.user)
- 	return;
+ return;
  var userId = data.user;
  sendUserInvite(userId, channel);
 }
 
 function handleGame(connection, command, data) {
  if(!data.channel)
- 	return;
+ return;
  var channel = data.channel;
  if(!channels[channel])
- 	return;
- var message = {};
- message["command"] = "game";
- message["data"] = data;
- for(connkey in channels[channel]) {
-    	if(!channels[channel].hasOwnProperty(connkey))
-    		continue;
-    	var exconnection = channels[channel][connkey];
-    	var sameClient = false;
-    	if(exconnection === connection)
-    		sameClient = true;
-    	if(true) //!sameClient
-    		handleConnectionSend(exconnection, message);
+  return;
+ for(connKey in channels[channel]) {
+    if(!channels[channel].hasOwnProperty(connKey))
+     continue;
+    var exconnection = channels[channel][connKey];
+    var sameClient = false;
+    if(exconnection === connection)
+     sameClient = true;
+    if(true) //!sameClient
+     handleCommandSend(exconnection, command, data);
  }
-}
-
-function handleClientOpen(connection, command, data) {
-}
-
-function handleClientClose(connection, command, data) {
 }
 
 function handleOpen(connection, command, data) {
@@ -353,8 +335,6 @@ registerCallback("joingame",handleJoinGame);
 registerCallback("game",handleGame);
 
 //Generic
-registerCallback("ClientOpen", handleClientOpen);
-registerCallback("ClientClose", handleClientClose);
 registerCallback("Open", handleOpen);
 registerCallback("Close", handleClose);
 
@@ -362,7 +342,6 @@ registerCallback("Close", handleClose);
 
 //Begin WebSocket Client Code.
 var cconnections = {};
-var wsClients = {};
 
 var WebSocketClient = require('websocket').client;
 if (!WebSocketClient) {
@@ -374,14 +353,18 @@ function handleClientConnectionSend(serverAddress, cconnection, message) {
  handleConnectionSend(cconnection, message);
 }
 
+function handleClientCommandSend(serverAddress, cconnection, command, data) {
+ handleCommandSend(cconnection, command, data);
+}
+
 function handleClientConnectionOpen(serverAddress, cconnection) {
   console.log(" " + serverAddress + " = " + cconnection.remoteAddress + " Connected - Protocol Version " + cconnection.websocketVersion);
   cconnections[serverAddress] = cconnection;
+  dequeMessages(serverAddress, [cconnection]);
   dispatchCommand(cconnection, "ClientOpen", null);
 }
 
 function handleClientConnectionClose(serverAddress, cconnection) {
-  delete wsClients[serverAddress];
   delete cconnections[serverAddress];
   dispatchCommand(cconnection, "ClientClose", null);
 }
@@ -404,7 +387,12 @@ function makeWebSocketClient(serverAddress) {
      console.log("Connection Error: " + e.toString());
      --retries;
      if(retries > 0) {
-	setTimeout(function() { wsClient.connect(serverAddress, 'turntable'); }, 100);
+       try {
+           console.log("Retrying, Making Connection to: "+serverAddress);
+           setTimeout(function() { wsClient.connect(serverAddress, 'turntable'); }, 100);
+       } catch (e) {
+           //Ignore. 	
+       }
      }
    });
    cconnection.on('message', function(message) {
@@ -426,6 +414,13 @@ var connections = [];
 
 function handleConnectionSend(connection, message) {
  connection.sendUTF(JSON.stringify(message));
+}
+
+function handleCommandSend(connection, command, data) {
+ var message = {};
+ message["command"] = command;
+ message["data"] = data;
+ handleConnectionSend(connection, message);
 }
 
 function handleConnectionOpen(connection) {
@@ -526,19 +521,19 @@ function handleExit() {
  console.log("Exiting .... ");
  wsServer.unmount();
  console.log("Closing Connections ...");
- for(connkey in connections) {
-   if(!connections.hasOwnProperty(connkey))
+ for(connKey in connections) {
+   if(!connections.hasOwnProperty(connKey))
      continue;
-   var connection = connections[connkey];
+   var connection = connections[connKey];
    handleConnectionClose(connection);
    connection.close();
  }
  console.log("Closing Client Connections ...");
- for(connkey in cconnections) {
-  if(!cconnections.hasOwnProperty(connkey))
+ for(connKey in cconnections) {
+  if(!cconnections.hasOwnProperty(connKey))
       continue;
-    var cconnection = cconnections[connkey];
-    handleClientConnectionClose(connkey, connection);
+    var cconnection = cconnections[connKey];
+    handleClientConnectionClose(connKey, connection);
     cconnection.close();
  }
     wsServer.shutDown();
