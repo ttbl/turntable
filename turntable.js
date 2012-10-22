@@ -139,8 +139,8 @@ function getChannelForConnection(connection)
 
 function sendUserNotification(userId, isOnline, isBusy)
 {
-  var status=isOnline? "online":"offline";
-  if(!isBusy) {
+  var status;
+  if(isOnline && !isBusy) {
       if(sub_user_chans[userId])
       for(channel in sub_user_chans[userId]) {
 	if(!sub_user_chans[userId].hasOwnProperty(channel))
@@ -149,13 +149,14 @@ function sendUserNotification(userId, isOnline, isBusy)
 	break;
      }
   }
+  status=isOnline? "online":"offline";
   if(isOnline && isBusy)
      status="busy";
   var subscribers = sub_users[userId];
   var users={}; users[userId] = status;
   if(!sub_users.hasOwnProperty(userId))
       return;
-  console.log("Local Notifying that User: "+userId+" is "+ status + " ....");
+  console.log("Notifying that User: "+userId+" is "+ status + " ....");
   for(connKey in subscribers) {
      if(!subscribers.hasOwnProperty(connKey))
       continue;
@@ -185,6 +186,7 @@ function sendUserBoundNotification(userId, channel, bound)
         console.log(" " + userId + " is now Unbound from Channel: " + channel);
   }
   var isOnline = true;
+  if(!users[userId]) isOnline = false;
   var isBusy = false; //Will Get Re-Evaluated!
   sendUserNotification(userId, isOnline, false);
 }
