@@ -51,10 +51,13 @@ function dispatchCommand(connection, command, data) {
 //Begin Commands.
 
 //Begin Command Variables.
-var users = {}; //User to Connections Map.
-var sub_users = {}; //User to Subscribed Connections Map.
 var messages = {}; //Message Queue.
-var channels = {}; //Channels to Array of Connections Map.
+
+var users = {}; //User to Connections Map.
+var sub_user_chans = {}; //User to Bound Channels Map.
+var sub_users = {}; //User to Subscribed Connections Map.
+
+var channels = {}; //Channels to Userwise Bound Connections Map.
 //End Command Variables.
 
 function getUserIdForConnection(connection)
@@ -76,7 +79,6 @@ function sendRemoteMessage(serverAddress, command, data) {
    var message = {};
    message["command"] = command;
    message["data"] = data;
-   handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
    handleClientConnectionSend (serverAddress, cconnections[serverAddress], message);
  }
 }
@@ -131,34 +133,60 @@ function getChannelForConnection(connection)
  for(var channel in channels) {
   if(getUserIdInChannelForConnection(channel, connection) != null)
     return channel;
-  }
+ }
  return null;
 }
 
 function sendUserNotification(userId, isOnline, isBusy)
 {
-  var userServer = getServer(userId, UserServers, crc32);
   var status=isOnline? "online":"offline";
+  if(!isBusy) {
+      if(sub_user_chans[userId])
+      for(channel in sub_user_chans[userId]) {
+	if(!sub_user_chans[userId].hasOwnProperty(channel))
+		continue;
+	isBusy = true;
+	break;
+     }
+  }
   if(isOnline && isBusy)
      status="busy";
   var subscribers = sub_users[userId];
   var users={}; users[userId] = status;
-  if(userServer != SelfId) { 
-    //Send Remote Notification ....
-    console.log("Remote Notifying that User: "+userId+" is "+ status + " ....");
-    sendRemoteMessage(userServer, "userchange", users);
-    return;
-  } else {
-    if(!sub_users.hasOwnProperty(userId))
+  if(!sub_users.hasOwnProperty(userId))
       return;
-    console.log("Local Notifying that User: "+userId+" is "+ status + " ....");
-    for(connKey in subscribers) {
-      if(!subscribers.hasOwnProperty(connKey))
-       continue;
+  console.log("Local Notifying that User: "+userId+" is "+ status + " ....");
+  for(connKey in subscribers) {
+     if(!subscribers.hasOwnProperty(connKey))
+      continue;
       var connection = subscribers[connKey];
       handleCommandSend(connection, "userchange", users);
-   }
- }
+  }
+}
+
+function sendUserBoundNotification(userId, channel, bound)
+{
+  var userServer = getServer(userId, UserServers, crc32);
+  if(userServer != SelfId ) {
+     var dataSent = {};
+     dataSent["user"] = userId;
+     dataSent["channel"] = channel;
+     dataSent["bound"] = bound;
+     sendRemoteMessage(userServer, "userbind", dataSent);
+     return;
+  }
+  if(!sub_user_chans[userId]) 
+	sub_user_chans[userId]={};
+  if(bound) {
+        console.log(" " + userId + " is now Bound to Channel: " + channel);
+	sub_user_chans[userId][channel] = true;
+  } else {
+	delete sub_user_chans[userId][channel];	
+        console.log(" " + userId + " is now Unbound from Channel: " + channel);
+  }
+  var isOnline = true;
+  var isBusy = false; //Will Get Re-Evaluated!
+  sendUserNotification(userId, isOnline, false);
 }
 
 function sendUserInvite(userId, channel)
@@ -217,6 +245,15 @@ function handleIdMe(connection, command, data) {
  sendUserNotification(userId, true, false);
  dequeMessages(userId, [connection]);
  console.log("Adding User: "+userId+" ....");
+}
+
+function handleUserBind(connection, command, data) {
+   var userId = data["user"];
+   var channel = data["channel"];
+   if(!userId || !channel)
+	return;
+   var bound = data["bound"];
+   sendUserBoundNotification(userId, channel, bound);
 }
 
 function handleUserChange(connection, command, data) {
@@ -284,13 +321,13 @@ function handleJoinGame(connection, command, data) {
     channels[channel] = {};
  }
  if(channels[channel][selfUserId]) {
-    console.log("Already Connected User: "+userId+", Disconnecting ....");
+    console.log("Already Connected User: "+selfUserId+", Disconnecting ....");
     connection.close();
     return;
  }
  channels[channel][selfUserId] = connection;
- console.log(" " + selfUserId + " = " + connection.remoteAddress + " is now Bound to Channel: " + channel);
- sendUserNotification(selfUserId, true, true);
+ sendUserBoundNotification(selfUserId, channel, true);
+ console.log(" "+connection.remoteAddress + " is now Bound to Channel: "+channel);
  if(!data.invite)
     return;
  var invites = data.invite;
@@ -337,6 +374,12 @@ function handleOpen(connection, command, data) {
 function handleClose(connection, command, data) {
  var userId = getUserIdForConnection(connection);
  if(userId != null) {
+  var userchannels = sub_user_chans[userId];
+  for(channel in userchannels) {
+    if(!userchannels.hasOwnProperty(channel))
+      continue;
+    sendUserBoundNotification(userId, channel, false); //Even though he may actually be bound to the Channel!
+  }
   sendUserNotification(userId, false, false);
   pruneUserConnections(userId);
  }
@@ -344,8 +387,8 @@ function handleClose(connection, command, data) {
  if(channel != null) {
     var userId = getUserIdInChannelForConnection(channel, connection);
     if(userId != null) {
-        console.log(" "+userId+" = "+connection.remoteAddress + " is now Unbound from Channel: "+channel);
- sendUserNotification(userId, true, false);
+        sendUserBoundNotification(userId, channel, false);
+        console.log(" "+connection.remoteAddress + " is now Unbound from Channel: "+channel);
         delete channels[channel][userId];
     }
  }
@@ -356,6 +399,7 @@ registerCallback("whothere", handleWhoThere);
 registerCallback("idme", handleIdMe);
 registerCallback("subscribe", handleSubscribe);
 registerCallback("userchange", handleUserChange);
+registerCallback("userbind", handleUserBind);
 
 //Game
 registerCallback("invite",handleInvite);
