@@ -112,37 +112,52 @@ function dequeMessages(queueId, connections) {
  }
 }
 
+function getUserIdInChannelForConnection(channel, connection)
+{
+  if(!channels.hasOwnProperty(channel))
+    return null;
+  for(userId in channels[channel]) {
+    if(!channels[channel].hasOwnProperty(userId))
+     continue;
+    var exconnection = channels[channel][userId];
+    if(exconnection === connection)
+     return userId;
+  }
+  return null;
+}
+
 function getChannelForConnection(connection)
 {
  for(var channel in channels) {
-  if(!channels.hasOwnProperty(channel))
-    continue;
-  for(connKey in channels[channel]) {
-    if(!channels[channel].hasOwnProperty(connKey))
-     continue;
-    var exconnection = channels[channel][connKey];
-    if(exconnection === connection)
-     return channel;
+  if(getUserIdInChannelForConnection(channel, connection) != null)
+    return channel;
   }
- }
  return null;
 }
 
 function sendUserNotification(userId, isOnline, isBusy)
 {
-  if(!sub_users.hasOwnProperty(userId))
-     return;
-  var subscribers = sub_users[userId];
+  var userServer = getServer(userId, UserServers, crc32);
   var status=isOnline? "online":"offline";
-  var users={}; users[userId] = status;
   if(isOnline && isBusy)
      status="busy";
-  console.log("Notifying that User: "+userId+" is "+ status + " ....");
-  for(connKey in subscribers) {
-    if(!subscribers.hasOwnProperty(connKey))
-     continue;
-    var connection = subscribers[connKey];
-    handleCommandSend(connection, "userchange", users);
+  var subscribers = sub_users[userId];
+  var users={}; users[userId] = status;
+  if(userServer != SelfId) { 
+    //Send Remote Notification ....
+    console.log("Remote Notifying that User: "+userId+" is "+ status + " ....");
+    sendRemoteMessage(userServer, "userchange", users);
+    return;
+  } else {
+    if(!sub_users.hasOwnProperty(userId))
+      return;
+    console.log("Local Notifying that User: "+userId+" is "+ status + " ....");
+    for(connKey in subscribers) {
+      if(!subscribers.hasOwnProperty(connKey))
+       continue;
+      var connection = subscribers[connKey];
+      handleCommandSend(connection, "userchange", users);
+   }
  }
 }
 
@@ -251,18 +266,31 @@ function handleSubscribe(connection, command, data) {
 
 function handleJoinGame(connection, command, data) {
  if(!data.channel)
- return;
+     return;
+ var selfUserId = data.self;
+ if(!selfUserId) {
+    console.log("No Identification Information, Disconnecting ....");
+    connection.close();
+    return;
+ }
  var channel = data.channel;
+ if(!channel) {
+    console.log("No Channel Information, Disconnecting ....");
+    connection.close();
+    return;
+ }
  if(!channels[channel]) {
     console.log("Creating Channel: "+channel+" ....");
-    channels[channel] = [];
+    channels[channel] = {};
  }
- var index = -1;
- index = channels[channel].indexOf(connection);
- if(index == -1) {
-    channels[channel].push(connection);
-    console.log(" " + connection.remoteAddress + " is now Bound to Channel: " + channel);
+ if(channels[channel][selfUserId]) {
+    console.log("Already Connected User: "+userId+", Disconnecting ....");
+    connection.close();
+    return;
  }
+ channels[channel][selfUserId] = connection;
+ console.log(" " + selfUserId + " = " + connection.remoteAddress + " is now Bound to Channel: " + channel);
+ sendUserNotification(selfUserId, true, true);
  if(!data.invite)
     return;
  var invites = data.invite;
@@ -314,11 +342,11 @@ function handleClose(connection, command, data) {
  }
  var channel = getChannelForConnection(connection);
  if(channel != null) {
-    var index = -1;
-    index = channels[channel].indexOf(connection);
-    if(index != -1) {
-        console.log(connection.remoteAddress + " is now Unbound from Channel: "+channel);
-        channels[channel].splice(index, 1);
+    var userId = getUserIdInChannelForConnection(channel, connection);
+    if(userId != null) {
+        console.log(" "+userId+" = "+connection.remoteAddress + " is now Unbound from Channel: "+channel);
+ sendUserNotification(userId, true, false);
+        delete channels[channel][userId];
     }
  }
 }
@@ -391,7 +419,7 @@ function makeWebSocketClient(serverAddress) {
            console.log("Retrying, Making Connection to: "+serverAddress);
            setTimeout(function() { wsClient.connect(serverAddress, 'turntable'); }, 100);
        } catch (e) {
-           //Ignore. 	
+           //Ignore. 
        }
      }
    });

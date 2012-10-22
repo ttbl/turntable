@@ -34,6 +34,7 @@
     var client = null;
     var onlineFriends = {};
     var offlineFriends = {};
+    var busyFriends = {};
     var gameId = "CStrike";
     var gclient = null;
     var gameMsgInterval = -1;
@@ -111,7 +112,9 @@
     }
   
     function onGameStart() {
-	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, invite: getFriends(userId) }});
+	if(gclient == null)
+		return;
+	gclient.handleWebSocketSend({command: "joingame", data: { channel: gameId, self: userId, invite: getFriends(userId) }});
 	gameMsgInterval = setInterval(function(){sendGame();},1000);
     }
 
@@ -134,14 +137,14 @@
 				var status = data[userid];
 				delete onlineFriends[userid];
 				delete offlineFriends[userid];
+				delete busyFriends[userid];
+				console.log("User Change: "+userid+" is "+status);
 				if(status == "offline")
 					offlineFriends[userid] = userid;
+				else if(status == "busy")
+					busyFriends[userid] = userid;
 				else
 					onlineFriends[userid] = userid;
-				if(!users)
-					users = "These Users are Present: ";
-				else
-					users += ",";
 			}
 		}
 		offlineusers=null;
@@ -160,12 +163,24 @@
 				onlineusers += ",";
 			onlineusers += "<b>"+friend+"</b>";
 		}
+		busyusers=null;
+		for(friend in busyFriends) {
+			if(!busyusers)
+				busyusers = "Busy: ";
+			else
+				busyusers += ",";
+			busyusers += "<b>"+friend+"</b>";
+		}
+
 		usersmsg = "";
 		if(offlineusers) {
 			usersmsg += offlineusers+"<br/>";
 		}
 		if(onlineusers) {
 			usersmsg += onlineusers+"<br/>";
+		}
+		if(busyusers) {
+			usersmsg += busyusers+"<br/>";
 		}
 		div.innerHTML = usersmsg;
 	}
