@@ -13,17 +13,17 @@ done
 
 which jitsu 2>&1 >/dev/null || { echo "Please Install Jitsu Manually." ; exit -1 ; }
 
-NUMAPPS=35
+NUMAPPS=1
 OFFSET=
 SERVERS=
 for nodenum in `seq $NUMAPPS`; do
-	nodename=turntable`printf %03d $nodenum`
+	nodename=ttable`printf %03d $nodenum`
 	wsservname=ws:XX$nodename.jit.su
 	SERVERS=$SERVERS\\\"$wsservname\\\",
 done
 
 for nodenum in `seq $OFFSET $NUMAPPS`; do
-	nodename=turntable`printf %03d $nodenum`
+	nodename=ttable`printf %03d $nodenum`
 	httpservname=http://$nodename.jit.su
 	wsservname=ws://$nodename.jit.su
 	SELF=ws:XX$nodename.jit.su
