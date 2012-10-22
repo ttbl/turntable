@@ -66,7 +66,7 @@ Game
 1. Client connects to Server of a Game room. Server asks client to Identify Yourself.
 2. Client joins (or create) a gameroom. We use Channel as the Id for this Server.
 `
-{ "command": "joingame", "data":{ "channel": "CStrike", "invite": ["1:2345"] }}
+{ "command": "joingame", "data":{ "channel": "CStrike", self:"1:3456", "invite": ["1:2345"] }}
 `
 Server Invites appropriate Users.
 `
