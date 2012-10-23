@@ -137,9 +137,19 @@ function getChannelForConnection(connection)
  return null;
 }
 
+function sendConnectionUserNotification(connection, userId, isOnline, isBusy) {
+  var status;
+  status=isOnline? "online":"offline";
+  if(isOnline && isBusy)
+     status="busy";
+  var user_changes={};
+  user_changes[userId] = status;
+  console.log("Notifying that User: "+userId+" is "+ status + " ....");
+  handleCommandSend(connection, "userchange", user_changes);
+}
+
 function sendUserNotification(userId, isOnline, isBusy)
 {
-  var status;
   if(isOnline && !isBusy) {
       if(sub_user_chans[userId])
       for(channel in sub_user_chans[userId]) {
@@ -149,19 +159,14 @@ function sendUserNotification(userId, isOnline, isBusy)
 	break;
      }
   }
-  status=isOnline? "online":"offline";
-  if(isOnline && isBusy)
-     status="busy";
-  var subscribers = sub_users[userId];
-  var users={}; users[userId] = status;
   if(!sub_users.hasOwnProperty(userId))
       return;
-  console.log("Notifying that User: "+userId+" is "+ status + " ....");
+  var subscribers = sub_users[userId];
   for(connKey in subscribers) {
      if(!subscribers.hasOwnProperty(connKey))
       continue;
       var connection = subscribers[connKey];
-      handleCommandSend(connection, "userchange", users);
+      sendConnectionUserNotification(connection, userId, isOnline, isBusy);
   }
 }
 
@@ -298,7 +303,7 @@ function handleSubscribe(connection, command, data) {
       var isOnline = true;
       if(!users[userId]) isOnline = false;
       var isBusy = false;
-      sendUserNotification(userId, isOnline, isBusy);
+      sendConnectionUserNotification(connection, userId, isOnline, isBusy);
     }
  }
 }
