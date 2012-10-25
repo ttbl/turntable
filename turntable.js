@@ -72,6 +72,8 @@ function getUserIdForConnection(connection)
 }
 
 function sendRemoteMessage(serverAddress, command, data) {
+ if(serverAdress == null)
+     return;
  if(!cconnections[serverAddress]) {
    makeWebSocketClient(serverAddress); //Must Batch These!
    queueMessage(serverAddress, command, data);
