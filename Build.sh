@@ -1,5 +1,7 @@
 #!/bin/sh
 
+export PATH=$PATH:`pwd`/Deps/bin
+
 which node 2>&1 >/dev/null || { echo "Please Install Node.js." ; exit -1 ; }
 which npm 2>&1 >/dev/null || { echo "Please Install Node Package Manager." ; exit -1 ; }
 
