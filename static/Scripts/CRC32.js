@@ -39,3 +39,8 @@ function crc32 (str) {
 	return crc ^ (-1);
  
 };
+
+//This is a Common Implementation.
+if(module && module.exports) {
+        module.exports.crc32 = crc32;
+}

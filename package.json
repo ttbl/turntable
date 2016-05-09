@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "start": "node turntable.js"
+  },
+  "version": "0.0.0-1",
+  "description": "Game and Presence Server in WebSocket-Node",
+  "readmeFilename": "README.md",
+  "dependencies": {
+    "websocket": "1.0.x"
+  },
+  "engines": {
+    "node": "0.8.x"
+  }
+}

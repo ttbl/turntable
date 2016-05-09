@@ -7,14 +7,6 @@ var webrootrel = "static";
 
 //Begin Common Config / Functions.
 var webroot = __dirname + "/" + webrootrel;
-var crc = require('crc');
-if(!crc) {
- console.log("Unable to Get CRC.");
- process.exit(-1);
-}
-function crc32(string) {
- return crc.crc32(string);
-}
 var serverList = require(webroot+"/Scripts/List.js");
 var SelfId = serverList.SelfId;
 var UserServers = serverList.UserServers;
@@ -22,6 +14,10 @@ var ChatServers = serverList.ChatServers;
 var GameServers = serverList.GameServers;
 var shard = require(webroot+"/Scripts/Shard.js");
 getServer = shard.getServer;
+var crc = require(webroot+"/Scripts/CRC32.js");
+function crc32(string) {
+ return crc.crc32(string);
+}
 //End Common Config / Functions.
 
 //Begin Command Dispatcher.
@@ -579,16 +575,27 @@ function handleConnectionMessage(connection, message) {
 var WebSocketServer = require('websocket').server;
 if (!WebSocketServer) {
     console.log("Unable to Get WebSocket-Node.");
-    process.exit(-1);
+    process.exit(-1);    
 }
 
 function makeWebSocketServer(app) {
- var wsServer = new WebSocketServer({
-    httpServer: app,
-     // Firefox 7 alpha has a bug that drops the
-     // connection on large fragmented messages
-     fragmentOutgoingMessages: false
-    });
+ var wsServerConfig =  {
+      // All options *except* 'httpServer' are required when bypassing
+      // WebSocketServer.
+      httpServer: app,
+      maxReceivedFrameSize: 0x10000,
+      maxReceivedMessageSize: 0x100000,
+      fragmentOutgoingMessages: true,
+      fragmentationThreshold: 0x4000,
+      keepalive: true,
+      keepaliveInterval: 20000,
+      assembleFragments: true,
+      // autoAcceptConnections is not applicable when bypassing WebSocketServer
+      // autoAcceptConnections: false,
+      disableNagleAlgorithm: true,
+      closeTimeout: 1000
+ };
+ var wsServer = new WebSocketServer(wsServerConfig);
  wsServer.on('request', function(request) {
        var connection = request.accept('turntable', request.origin);
        //Handle open connection
@@ -607,33 +614,40 @@ function makeWebSocketServer(app) {
 //End WebSocket Server Code.
 
 //Begin HTTP Server Code.
-var express = require('express');
-if (!express) {
- console.log("Unable to Get Express.");
+var http = require('http'),
+    url = require('url'),
+    path = require('path'),
+    fs = require('fs');
+
+var app = http.createServer(function(request,response) {
+   var uri = url.parse(request.url).pathname
+    , filename = path.join(process.cwd(), webrootrel, uri);
+   fs.exists(filename, function(exists) {
+    if(!exists) {
+      response.writeHead(404, {"Content-Type": "text/plain"});
+      response.write("404 Not Found\n");
+      response.end();
+      return;
+    }
+    if (fs.statSync(filename).isDirectory()) filename += '/index.html';
+    fs.readFile(filename, "binary", function(err, file) {
+      if(err) { 
+        response.writeHead(500, {"Content-Type": "text/plain"});
+        response.write(err + "\n");
+        response.end();
+        return;
+      }
+      response.writeHead(200);
+      response.write(file, "binary");
+      response.end();
+    });
+  });
+});
+
+if (!app) {
+ console.log("Unable to Make HTTP Server.");
  process.exit(-1);
 }
-
-var app = express.createServer();
-var wsServer;
-
-app.configure(function() {
- app.use(express.static(webroot));
- app.set('views', __dirname);
- app.set('view engine', 'ejs');
-});
-
-app.get('/', function(request, response) {
- response.render(webroot + "/index", { layout: false });
-});
-
-app.on('error', function(e) {
- if(e.code !== 'EADDRINUSE') {
-        console.log("Application Error: " + e.toString());
-return;
- }
- console.log("Unable to Bind Server. Please check if you are already running this code. Retrying ...");
- setTimeout(function() { app.listen(port); }, 5000);
-});
 //End HTTP Server Code.
 
 //Begin Process Handling Code.
@@ -676,5 +690,6 @@ process.on('uncaughtException', function (e) {
 });
 
 //Launch!
-app.listen(port);
+console.log("Starting Server.");
 var wsServer = makeWebSocketServer(app);
+app.listen(port);

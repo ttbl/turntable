@@ -1,7 +1,7 @@
 turntable
 =========
 
-Game and Presence Server in [Websocket-Node](https://github.com/Worlize/WebSocket-Node/)
+Game and Presence Server in [WebSocket-Node](https://github.com/theturtle32/WebSocket-Node/)
 
 Running and Installation
 ------------------------

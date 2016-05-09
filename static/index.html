@@ -14,8 +14,8 @@
   <div id="Login">
   	<p>Enter Your ID:</p>
 	<form name="idform" action="javascript:void(0);" onsubmit="return onLoggedIn();">
-	<input type="text" id="iduser" name="iduser" value="1:644850560"/>
-	<input type="submit" id="idsubmit" name="idsubmit" value="Login!"/>
+	<input type="text" id="iduser" name="iduser" value="game:User1"/>
+	<input type="submit" id="idsubmit" name="idsubmit" value="Join!"/>
 	</form>
   </div>
   <div id="Users">
@@ -35,7 +35,7 @@
     var onlineFriends = {};
     var offlineFriends = {};
     var busyFriends = {};
-    var gameId = "CStrike";
+    var gameId = "TurntableGame";
     var gclient = null;
     var gameMsgInterval = -1;
 
@@ -76,14 +76,14 @@
     }
 
     function getFriends(userId) {
-	if(userId == "1:644850560") {
-		return [ "1:123", "1:345" ];
+	if(userId == "game:User1") {
+		return [ "game:User2", "game:User3" ];
 	}
-	if(userId == "1:123") {
-		return [ "1:345", "1:644850560"];
+	if(userId == "game:User2") {
+		return [ "game:User3", "game:User1" ];
 	}
-	if(userId == "1:345") {
-		return [ "1:123", "1:644850560"];
+	if(userId == "game:User3") {
+		return [ "game:User1", "game:User2" ];
 	}
 	return [];
     }
