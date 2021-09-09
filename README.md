@@ -8,12 +8,12 @@ Running and Installation
 
 Install Node, NPM for your system.
 
-Run ./Build.sh for Installing Dependencies and Running the Code.
+Run `./Build.sh` for Installing Dependencies and Running the Code.
 
 Deployment
 ----------
 
-Run ./Deploy.sh for Running the Code over the Internet.
+Run `./Deploy.sh` for Running the Code over the Internet.
 
 Credits
 -------
